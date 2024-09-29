@@ -1,5 +1,6 @@
 import Stats from "./Stats.js";
 import DexAbilities from "./DexAbilities.js";
+import Types from "./Type.js";
 const BATTLER_SIGNATURE = Symbol('BATTLER_SIGNATURE');
 class Battler {
     name;
@@ -10,6 +11,7 @@ class Battler {
     active = false;
     ability = DexAbilities.no_ability;
     heldItem = null;
+    types = [Types.Type["???"]];
     /** Move to PP map */
     moveSlots = new Map();
     getMoves() {
@@ -63,6 +65,12 @@ class Battler {
             this.currentHP = this.stats.hp;
         }
         return amount;
+    }
+    setMoveset(moves) {
+        this.moveSlots.clear();
+        for (const move of moves) {
+            this.moveSlots.set(move, move.PP);
+        }
     }
     static isBattler(b) {
         return b?.[BATTLER_SIGNATURE] === true;

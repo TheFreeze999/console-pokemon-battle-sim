@@ -1,7 +1,9 @@
 import Battle from "./Battle.js";
 import Battler from "./Battler.js";
 import Effect from "./Effect.js";
+import event from "./Event.js";
 import Stats from "./Stats.js";
+import Types from "./Type.js";
 import Util from "./util.js";
 
 class Move implements Effect, Move.Data {
@@ -9,10 +11,10 @@ class Move implements Effect, Move.Data {
 	targeting = Move.Targeting.ONE_OTHER;
 	category = Move.Category.PHYSICAL;
 	basePower = 0;
-	async applySecondary(target: Battler[], user: Battler) { }
-	async applySecondariesOnHit(targetBattler: Battler, user: Battler) { }
-
-
+	type = Types.Type["???"];
+	contact = false;
+	handler: event.Handler = [];
+	PP = 10;
 
 	constructor(public name: string, public displayName: string, data: Partial<Move.Data> = {}) {
 		Object.assign(this, data);
@@ -32,7 +34,12 @@ class Move implements Effect, Move.Data {
 		if (!this.isStandardDamagingAttack()) return null;
 		const attackingStat = (this.category === Move.Category.PHYSICAL ? "atk" : "spA");
 		const defendingStat = (this.category === Move.Category.PHYSICAL ? "def" : "spD");
-		return Math.floor((this.basePower + attacker.stats[attackingStat] - defender.stats[defendingStat]) * Util.Random.int(85, 100) / 100);
+
+		const typeEffectivenessModifier = Types.calcEffectiveness([this.type], defender.types);
+		const STABModifier = attacker.types.includes(this.type) ? 1.5 : 1;
+		const modifiers = typeEffectivenessModifier * STABModifier;
+
+		return Math.floor((this.basePower + attacker.stats[attackingStat] - defender.stats[defendingStat]) * Util.Random.int(85, 100) / 100 * modifiers);
 	}
 
 	isStandardDamagingAttack() {
@@ -52,7 +59,7 @@ namespace Move {
 		STATUS = 'STATUS',
 	}
 
-	export type Data = Pick<Move, "category" | "targeting" | "basePower" | "applySecondary" | "applySecondariesOnHit">
+	export type Data = Pick<Move, "category" | "targeting" | "basePower" | "type" | "contact" | "handler" | "PP">
 }
 
 

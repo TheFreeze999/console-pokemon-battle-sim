@@ -4,6 +4,7 @@ import DexAbilities from './DexAbilities.js';
 import DexItems from "./DexItems.js";
 import DexMoves from "./DexMoves.js";
 import Move from "./Move.js";
+import Types from "./Type.js";
 import Util from "./util.js";
 
 
@@ -28,17 +29,18 @@ gibble.setStats({
 	spD: 30,
 	spe: 70
 });
-// abra.ability = DexAbilities.magic_guard;
+
+gibble.types = [Types.Type.DRAGON, Types.Type.GROUND];
+abra.types = [Types.Type.PSYCHIC];
+
+abra.ability = DexAbilities.ice_absorb;
 gibble.ability = DexAbilities.rough_skin;
 
 abra.heldItem = DexItems.leftovers;
 gibble.heldItem = DexItems.leftovers;
 
-abra.moveSlots.set(DexMoves.tackle, 1);
-abra.moveSlots.set(DexMoves.recover, 3);
-
-gibble.moveSlots.set(DexMoves.tackle, 1);
-gibble.moveSlots.set(DexMoves.recover, 3);
+abra.setMoveset([DexMoves.powder_snow, DexMoves.tackle]);
+gibble.setMoveset([DexMoves.knock_off, DexMoves.powder_snow]);
 
 battle.teams[0].addBattlers(abra);
 battle.teams[1].addBattlers(gibble);
@@ -46,7 +48,7 @@ battle.teams[1].addBattlers(gibble);
 battle.start();
 
 while (battle.getWinner() === null) {
-	await battle.showText(`//////////////// Turn ${battle.turn}`);
+	await battle.showText(`=== Turn ${battle.turn} ===`);
 
 	for (const battler of battle.getAllActive()) {
 		const randomMove = Util.Random.arrayEl(battler.getUsableMoves()) ?? DexMoves.struggle;
@@ -55,7 +57,10 @@ while (battle.getWinner() === null) {
 		if (randomMove.targeting === Move.Targeting.SELF) target = [battler];
 		battler.decrementMovePP(randomMove)
 		await battle.runEvent(`Move`, { move: randomMove }, target, battler);
+
+		await battle.showText("---")
 	}
 
 	await battle.endTurn();
 }
+

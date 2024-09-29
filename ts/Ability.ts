@@ -1,7 +1,7 @@
 import Effect from "./Effect.js";
 import event from "./Event.js";
 
-class Ability implements Effect.EventHandlingEffect {
+class Ability implements Effect {
 	handler: event.Handler = [];
 	constructor(public name: string, public displayName: string, data: Partial<Ability.Data> = {}) {
 		Object.assign(this, data);

@@ -1,4 +1,5 @@
 import Battle from "./Battle.js";
+import Types from "./Type.js";
 import Util from "./util.js";
 class Move {
     name;
@@ -6,8 +7,10 @@ class Move {
     targeting = Move.Targeting.ONE_OTHER;
     category = Move.Category.PHYSICAL;
     basePower = 0;
-    async applySecondary(target, user) { }
-    async applySecondariesOnHit(targetBattler, user) { }
+    type = Types.Type["???"];
+    contact = false;
+    handler = [];
+    PP = 10;
     constructor(name, displayName, data = {}) {
         this.name = name;
         this.displayName = displayName;
@@ -27,7 +30,10 @@ class Move {
             return null;
         const attackingStat = (this.category === Move.Category.PHYSICAL ? "atk" : "spA");
         const defendingStat = (this.category === Move.Category.PHYSICAL ? "def" : "spD");
-        return Math.floor((this.basePower + attacker.stats[attackingStat] - defender.stats[defendingStat]) * Util.Random.int(85, 100) / 100);
+        const typeEffectivenessModifier = Types.calcEffectiveness([this.type], defender.types);
+        const STABModifier = attacker.types.includes(this.type) ? 1.5 : 1;
+        const modifiers = typeEffectivenessModifier * STABModifier;
+        return Math.floor((this.basePower + attacker.stats[attackingStat] - defender.stats[defendingStat]) * Util.Random.int(85, 100) / 100 * modifiers);
     }
     isStandardDamagingAttack() {
         return this.category !== Move.Category.STATUS && this.basePower > 0;

@@ -50,9 +50,9 @@ class Battle {
 
 	async showText(...texts: any[]) {
 		for (const text of texts) {
-			await Util.delay(500);
+			// await Util.delay(500);
 			console.log(String(text))
-			await Util.delay(500);
+			// await Util.delay(500);
 		}
 	}
 
@@ -88,6 +88,10 @@ class Battle {
 
 		if (target === this) {
 			listenerFunctions.push(...this.getBattleListenerFunctions(`on${name}`));
+		}
+
+		if (sourceEffect) {
+			listenerFunctions.push(...this.getEffectListenerFunctions(`onSourceEffect${name}`, sourceEffect));
 		}
 
 		for (const activeBattler of this.getAllActive()) {
@@ -153,6 +157,24 @@ class Battle {
 	private getBattleListenerFunctions<T extends event.MethodName>(methodName: T) {
 		let combinedHandler = [
 			...event.globalHandler,
+		];
+
+		combinedHandler = combinedHandler.sort((a, b) => (b[`${methodName}Priority`] ?? 0) - (a[`${methodName}Priority`] ?? 0));
+
+		const listeners = combinedHandler.map(handler => {
+			if (handler[methodName]) {
+				// @ts-expect-error
+				handler[methodName][PRIORITY] = handler[`${methodName}Priority`] ?? 0;
+			}
+			return handler[methodName]
+		}).filter(l => l != undefined) as event.ListenerFunction[];
+
+		return listeners;
+	}
+
+	private getEffectListenerFunctions<T extends event.MethodName>(methodName: T, effect: Effect) {
+		let combinedHandler = [
+			...effect.handler,
 		];
 
 		combinedHandler = combinedHandler.sort((a, b) => (b[`${methodName}Priority`] ?? 0) - (a[`${methodName}Priority`] ?? 0));

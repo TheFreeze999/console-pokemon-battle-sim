@@ -11,16 +11,24 @@ namespace event {
 			amount: number;
 			isDirect?: boolean;
 			flags?: Record<string, boolean>;
+			typeEffectivenessText?: string;
+			recoil?: { isRecoil: boolean, showText: boolean }
 		}
 		Heal: {
 			amount: number;
 		}
 		Move: {
 			move: Move;
+			failed?: boolean;
+			skipDamage?: boolean;
+			skipSecondaryEffects?: boolean;
+			flags?: Record<string, boolean>;
 		}
 		Faint: null;
 		Residual: null;
 		RemoveItem: { reasonText?: string };
+		ApplyMoveSecondary: { hitBattlers: Battler[] };
+		GetDamageMultiplier: number;
 	}
 	export type Name = keyof DataTypes;
 
@@ -31,6 +39,8 @@ namespace event {
 		Faint: Battler;
 		Residual: Battler;
 		RemoveItem: Battler;
+		ApplyMoveSecondary: TargetTypes["Move"];
+		GetDamageMultiplier: Battler;
 	}
 
 	export type TargetType<N extends Name> = N extends keyof TargetTypes ? TargetTypes[N] : (Battler[] | Battler | Battle);
@@ -39,7 +49,7 @@ namespace event {
 	export type ListenerFunction<K extends Name = Name> = (this: Battle, data: event.DataTypes[K], target: TargetType<K>, wielder: Battler, sourceBattler: Battler | null, sourceEffect: Effect | null) => Promise<event.DataTypes[K] | null | void>;
 
 
-	type TargetRelation = `${'' | 'Source'}${'' | 'Ally' | 'Foe'}` | 'Any'
+	type TargetRelation = (`${'' | 'Source'}${'' | 'Ally' | 'Foe'}` | 'Any') | 'SourceEffect'
 	export type HandlerMethods = ({
 		[K in Name as `on${K}`]?: ListenerFunction<K>;
 	} & {

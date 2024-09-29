@@ -1,3 +1,4 @@
+import Types from "./Type.js";
 const CLAUSES = [{
         onDamagePriority: 500,
         async onDamage(data, target) {
@@ -19,6 +20,15 @@ const CLAUSES = [{
         async onHeal(data, target) {
             if (data.amount <= 0 || target.currentHP >= target.stats.hp)
                 return null;
+        }
+    }];
+const BEFORE_EXECUTION = [{
+        onDamagePriority: 101,
+        async onDamage(data, target) {
+            if (data.typeEffectivenessText)
+                await this.showText(data.typeEffectivenessText);
+            if (data.recoil?.isRecoil && data.recoil.showText)
+                await this.showText(`${target.name} was hurt by recoil.`);
         }
     }];
 const EXECUTION = [{
@@ -47,26 +57,40 @@ const EXECUTION = [{
             if (Array.isArray(target) && target.every(b => b.fainted))
                 return null;
             await this.showText(`${sourceBattler.name} used ${data.move.displayName}!`);
+            let hitBattlers = [];
             if (Array.isArray(target)) {
                 for (const targetBattler of target) {
                     if (targetBattler.fainted)
                         continue;
                     if (data.move.isStandardDamagingAttack()) {
-                        const damageAmount = data.move.calcDamage(sourceBattler, targetBattler);
-                        if (damageAmount) {
+                        const damageMultiplier = await this.runEvent('GetDamageMultiplier', 1, targetBattler, sourceBattler, data.move) ?? 1;
+                        let damageAmount = data.move.calcDamage(sourceBattler, targetBattler);
+                        if (damageAmount !== null && data.skipDamage !== true) {
+                            damageAmount *= damageMultiplier;
+                            const typeEffectiveness = Types.calcEffectiveness([data.move.type], targetBattler.types);
+                            const typeEffectivenessText = Types.getEffectivenessText(typeEffectiveness, targetBattler.name);
+                            if (typeEffectiveness === 0) {
+                                await this.showText(`It doesn't affect ${targetBattler.name}...`);
+                                return null;
+                            }
                             const result = await this.runEvent('Damage', {
                                 amount: damageAmount,
-                                isDirect: true
+                                isDirect: true,
+                                typeEffectivenessText,
                             }, targetBattler, sourceBattler, data.move);
                             if (result !== null) {
-                                await data.move.applySecondariesOnHit(targetBattler, sourceBattler);
+                                hitBattlers.push(targetBattler);
                             }
                         }
                     }
                 }
-                await data.move.applySecondary(target, sourceBattler);
             }
             // if target is battle: logic
+            if (data.skipSecondaryEffects !== true) {
+                const result = await this.runEvent('ApplyMoveSecondary', { hitBattlers }, target, sourceBattler, data.move);
+                if (result === null)
+                    data.failed = true;
+            }
         },
         onFaintPriority: 100,
         async onFaint(data, target) {
@@ -80,5 +104,12 @@ const EXECUTION = [{
                 await this.showText(data.reasonText);
         }
     }];
-const GLOBAL_EVENT_HANDLER = [...CLAUSES, ...EXECUTION];
+const AFTER_EXECUTION = [{
+        onMovePriority: 99,
+        async onMove(data) {
+            if (data.failed)
+                await this.showText(`But it failed!`);
+        }
+    }];
+const GLOBAL_EVENT_HANDLER = [...CLAUSES, ...BEFORE_EXECUTION, ...EXECUTION, ...AFTER_EXECUTION,];
 export default GLOBAL_EVENT_HANDLER;
