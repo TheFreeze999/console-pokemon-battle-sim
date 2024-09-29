@@ -1,0 +1,23 @@
+{
+	"name": "console-pokemon-battle-sim",
+	"version": "1.0.0",
+	"description": "",
+	"main": "js/index.js",
+	"scripts": {
+		"start": "node .",
+		"devStart": "nodemon .",
+		"clean": "rm -r js"
+	},
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/TheFreeze999/console-pokemon-battle-sim.git"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/TheFreeze999/console-pokemon-battle-sim/issues"
+	},
+	"homepage": "https://github.com/TheFreeze999/console-pokemon-battle-sim#readme"
+}
