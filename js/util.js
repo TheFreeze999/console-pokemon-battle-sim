@@ -32,5 +32,25 @@ var Util;
         return cloned;
     }
     Util.clone = clone;
+    function clamper(min = -Infinity, max = Infinity) {
+        return function (x) {
+            if (x < min)
+                return min;
+            if (x > max)
+                return max;
+            return x;
+        };
+    }
+    Util.clamper = clamper;
+    function objectEntries(obj) {
+        return Object.keys(obj).map(key => [key, obj[key]]);
+    }
+    Util.objectEntries = objectEntries;
+    function* createIDGen() {
+        let i = 0;
+        while (true)
+            yield i++;
+    }
+    Util.createIDGen = createIDGen;
 })(Util || (Util = {}));
 export default Util;

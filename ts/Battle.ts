@@ -1,4 +1,7 @@
 import Battler from "./Battler.js";
+import DexAbilities from "./DexAbilities.js";
+import DexConditions from "./DexConditions.js";
+import DexItems from "./DexItems.js";
 import Effect from "./Effect.js";
 import event from "./Event.js";
 import Move from "./Move.js";
@@ -12,6 +15,15 @@ const PRIORITY = Symbol('WIELDER');
 class Battle {
 	teams!: [Team, Team];
 	turn = 1;
+
+	private battlerIDGen = Util.createIDGen();
+	generateBattlerID() { return `B-${this.battlerIDGen.next().value}` as Battler.ID }
+
+
+
+
+	eventState: Record<keyof any, any> = {};
+
 
 	constructor() {
 		this.initTeams()
@@ -41,6 +53,10 @@ class Battle {
 				battler.active = i === 0;
 			}
 		}
+	}
+
+	getAllBattlers() {
+		return this.teams.flatMap(team => team.battlers);
 	}
 
 	getAllActive() {
@@ -101,7 +117,9 @@ class Battle {
 		listenerFunctions = listenerFunctions.sort((a, b) => {
 			// @ts-expect-error
 			return (b[PRIORITY] ?? 0) - (a[PRIORITY] ?? 0)
-		})
+		});
+
+		const oldEffectState = this.eventState;
 
 		let nullResultOccured = false;
 		for (const listenerFunction of listenerFunctions) {
@@ -125,6 +143,8 @@ class Battle {
 			delete listenerFunction[WIELDER];
 		}
 
+		this.eventState = oldEffectState;
+
 		return nullResultOccured ? null : data;
 	}
 
@@ -133,8 +153,12 @@ class Battle {
 		let combinedHandler = [
 			...event.globalHandler,
 			...battler.ability.handler,
-			...(battler.heldItem?.handler ?? [])
+			...(battler.heldItem?.handler ?? []),
 		];
+
+		for (const condition of battler.conditions) {
+			combinedHandler.push(...condition.handler);
+		}
 
 		combinedHandler = combinedHandler.sort((a, b) => (b[`${methodName}Priority`] ?? 0) - (a[`${methodName}Priority`] ?? 0));
 
@@ -190,6 +214,7 @@ class Battle {
 		return listeners;
 	}
 
+
 	getWinner() {
 		if (this.teams[0].hasLost()) return this.teams[1];
 		if (this.teams[1].hasLost()) return this.teams[0];
@@ -197,8 +222,9 @@ class Battle {
 	}
 
 	async endTurn() {
+		console.log("---")
 		for (const battler of this.getAllActive()) {
-			await this.runEvent('Residual', null, battler);
+			await this.runEvent('Residual', {}, battler);
 		}
 		this.turn++;
 	}

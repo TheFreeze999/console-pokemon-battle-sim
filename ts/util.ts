@@ -33,6 +33,23 @@ namespace Util {
 	export type Prettify<T> = {
 		[K in keyof T]: T[K] extends object ? Prettify<T[K]> : T[K];
 	} & unknown;
+
+	export function clamper(min = -Infinity, max = Infinity) {
+		return function (x: number) {
+			if (x < min) return min;
+			if (x > max) return max;
+			return x;
+		}
+	}
+
+	export function objectEntries<K extends keyof any, V>(obj: Partial<Record<K, V>>) {
+		return (Object.keys(obj) as K[]).map(key => [key, obj[key]]) as [K, V][]
+	}
+
+	export function* createIDGen(): Generator<number, number, number> {
+		let i = 0;
+		while (true) yield i++;
+	}
 }
 
 export default Util;

@@ -3,7 +3,7 @@ import Battler from "./Battler.js";
 import Effect from "./Effect.js";
 import event from "./Event.js";
 import Stats from "./Stats.js";
-import Types from "./Type.js";
+import Types from "./Types.js";
 import Util from "./util.js";
 
 class Move implements Effect, Move.Data {
@@ -39,11 +39,11 @@ class Move implements Effect, Move.Data {
 		const STABModifier = attacker.types.includes(this.type) ? 1.5 : 1;
 		const modifiers = typeEffectivenessModifier * STABModifier;
 
-		return Math.floor((this.basePower + attacker.stats[attackingStat] - defender.stats[defendingStat]) * Util.Random.int(85, 100) / 100 * modifiers);
+		return Util.clamper(1)(Math.floor((this.basePower + attacker.getEffectiveStats()[attackingStat] - defender.getEffectiveStats()[defendingStat]) * Util.Random.int(85, 100) / 100 * modifiers));
 	}
 
 	isStandardDamagingAttack() {
-		return this.category !== Move.Category.STATUS && this.basePower > 0;
+		return this.category !== Move.Category.STATUS && !!this.basePower;
 	}
 }
 

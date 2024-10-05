@@ -1,8 +1,10 @@
 import Battle from "./Battle.js";
 import Battler from "./Battler.js";
+import Condition from "./Condition.js";
 import Effect from "./Effect.js";
 import GLOBAL_EVENT_HANDLER from "./GlobalEventHandler.js";
 import Move from "./Move.js";
+import Stats from "./Stats.js";
 import Util from "./util.js";
 
 namespace event {
@@ -24,11 +26,20 @@ namespace event {
 			skipSecondaryEffects?: boolean;
 			flags?: Record<string, boolean>;
 		}
-		Faint: null;
-		Residual: null;
+		Faint: {};
+		Residual: {};
 		RemoveItem: { reasonText?: string };
-		ApplyMoveSecondary: { hitBattlers: Battler[] };
+		ApplyMoveSecondary: { allFailed: boolean };
+		DamagingHit: {};
 		GetDamageMultiplier: number;
+		GetTypeEffectiveness: number;
+		CheckImmunity: boolean;
+		MoveSuccess: DataTypes["Move"];
+		StatBoost: { boosts: Partial<Stats.Boostable> };
+		ApplyCondition: { condition: Condition };
+		RemoveCondition: { condition: Condition };
+		ConditionGetApplied: {};
+		ConditionGetRemoved: {};
 	}
 	export type Name = keyof DataTypes;
 
@@ -39,8 +50,16 @@ namespace event {
 		Faint: Battler;
 		Residual: Battler;
 		RemoveItem: Battler;
-		ApplyMoveSecondary: TargetTypes["Move"];
+		ApplyMoveSecondary: Battler;
+		DamagingHit: Battler;
 		GetDamageMultiplier: Battler;
+		GetTypeEffectiveness: Battler;
+		CheckImmunity: Battler;
+		StatBoost: Battler;
+		ApplyCondition: Battler;
+		RemoveCondition: Battler;
+		ConditionGetApplied: Battler;
+		ConditionGetRemoved: Battler;
 	}
 
 	export type TargetType<N extends Name> = N extends keyof TargetTypes ? TargetTypes[N] : (Battler[] | Battler | Battle);

@@ -1,5 +1,5 @@
 import Battle from "./Battle.js";
-import Types from "./Type.js";
+import Types from "./Types.js";
 import Util from "./util.js";
 class Move {
     name;
@@ -33,10 +33,10 @@ class Move {
         const typeEffectivenessModifier = Types.calcEffectiveness([this.type], defender.types);
         const STABModifier = attacker.types.includes(this.type) ? 1.5 : 1;
         const modifiers = typeEffectivenessModifier * STABModifier;
-        return Math.floor((this.basePower + attacker.stats[attackingStat] - defender.stats[defendingStat]) * Util.Random.int(85, 100) / 100 * modifiers);
+        return Util.clamper(1)(Math.floor((this.basePower + attacker.getEffectiveStats()[attackingStat] - defender.getEffectiveStats()[defendingStat]) * Util.Random.int(85, 100) / 100 * modifiers));
     }
     isStandardDamagingAttack() {
-        return this.category !== Move.Category.STATUS && this.basePower > 0;
+        return this.category !== Move.Category.STATUS && !!this.basePower;
     }
 }
 (function (Move) {

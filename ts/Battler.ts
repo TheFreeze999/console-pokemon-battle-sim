@@ -3,17 +3,25 @@ import Stats from "./Stats.js";
 import Move from "./Move.js";
 import DexAbilities from "./DexAbilities.js";
 import Item from "./Item.js";
-import Types from "./Type.js";
+import Types from "./Types.js";
+import Util from "./util.js";
+import Condition from "./Condition.js";
 
 const BATTLER_SIGNATURE = Symbol('BATTLER_SIGNATURE');
 class Battler {
+	id!: Battler.ID;
+
 	team!: Team;
 	stats = Stats.Create.base();
+	statBoosts = Stats.Create.boostable();
 	currentHP = -1;
 	fainted = false;
 	active = false;
 	ability = DexAbilities.no_ability;
 	heldItem: Item | null = null;
+	conditions = new Set<Condition>();
+
+	data: Record<keyof any, any> = {}
 
 	types: Types.Type[] = [Types.Type["???"]];
 
@@ -65,7 +73,7 @@ class Battler {
 	dealDamage(amount: number) {
 		amount = Math.abs(Math.floor(amount));
 		this.currentHP -= amount;
-		if (this.currentHP < 0) {
+		if (this.currentHP <= 0) {
 			amount += this.currentHP;
 			this.currentHP = 0;
 			this.fainted = true;
@@ -99,6 +107,43 @@ class Battler {
 			throw new Error("Argument is not a battler");
 	}
 
+	applyBoosts(boosts: Partial<Stats.Boostable>) {
+		const statClamp = Util.clamper(-6, 6);
+		const changes: Partial<Stats.Boostable> = {}
+		for (const [stat, boost] of Util.objectEntries(boosts)) {
+			const oldValue = this.statBoosts[stat]
+			this.statBoosts[stat] = statClamp(oldValue + boost);
+
+			if (oldValue !== this.statBoosts[stat]) {
+				changes[stat] = this.statBoosts[stat] - oldValue;
+			}
+		}
+		return changes;
+	}
+
+
+	getEffectiveStats() {
+		const result = Stats.Create.withoutHP();
+		for (const [stat] of Util.objectEntries(this.stats)) {
+			if (stat === 'hp') continue;
+
+			let numerator = 2;
+			let denominator = 2;
+			if (this.statBoosts[stat] > 0) numerator += this.statBoosts[stat];
+			else if (this.statBoosts[stat] < 0) denominator += this.statBoosts[stat];
+
+			result[stat] = this.stats[stat] * (numerator / denominator)
+		}
+		return result;
+	}
+
+	hasStatusCondition() {
+		return [...this.conditions].some(c => c.isStatus);
+	}
+}
+
+namespace Battler {
+	export type ID = `B-${number}` & { _brand: 'Battler.ID' };
 }
 
 export default Battler;

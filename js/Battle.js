@@ -7,6 +7,9 @@ const PRIORITY = Symbol('WIELDER');
 class Battle {
     teams;
     turn = 1;
+    battlerIDGen = Util.createIDGen();
+    generateBattlerID() { return `B-${this.battlerIDGen.next().value}`; }
+    eventState = {};
     constructor() {
         this.initTeams();
     }
@@ -30,6 +33,9 @@ class Battle {
                 battler.active = i === 0;
             }
         }
+    }
+    getAllBattlers() {
+        return this.teams.flatMap(team => team.battlers);
     }
     getAllActive() {
         return this.teams.flatMap(team => team.getAllActive());
@@ -77,6 +83,7 @@ class Battle {
             // @ts-expect-error
             return (b[PRIORITY] ?? 0) - (a[PRIORITY] ?? 0);
         });
+        const oldEffectState = this.eventState;
         let nullResultOccured = false;
         for (const listenerFunction of listenerFunctions) {
             // @ts-expect-error
@@ -94,14 +101,18 @@ class Battle {
             // @ts-expect-error
             delete listenerFunction[WIELDER];
         }
+        this.eventState = oldEffectState;
         return nullResultOccured ? null : data;
     }
     getBattlerListenerFunctions(methodName, battler) {
         let combinedHandler = [
             ...event.globalHandler,
             ...battler.ability.handler,
-            ...(battler.heldItem?.handler ?? [])
+            ...(battler.heldItem?.handler ?? []),
         ];
+        for (const condition of battler.conditions) {
+            combinedHandler.push(...condition.handler);
+        }
         combinedHandler = combinedHandler.sort((a, b) => (b[`${methodName}Priority`] ?? 0) - (a[`${methodName}Priority`] ?? 0));
         const listeners = combinedHandler.map(handler => {
             if (handler[methodName]) {
@@ -152,8 +163,9 @@ class Battle {
         return null;
     }
     async endTurn() {
+        console.log("---");
         for (const battler of this.getAllActive()) {
-            await this.runEvent('Residual', null, battler);
+            await this.runEvent('Residual', {}, battler);
         }
         this.turn++;
     }

@@ -119,9 +119,9 @@ namespace Types {
 		},
 	};
 
-	export function calcEffectiveness(attackingTypes: Type[], defendingTypes: Type[]) {
+	export function calcEffectiveness(attackingTypes: Type[], defendingTypes: Type[], _MATCHUP_TABLE = MATCHUP_TABLE) {
 		const calcSingleInteraction = (att: Type, def: Type) => {
-			const tableRow = MATCHUP_TABLE[def];
+			const tableRow = _MATCHUP_TABLE[def];
 			if (tableRow.weaknesses.includes(att)) return 2;
 			if (tableRow.resistances.includes(att)) return 0.5;
 			if (tableRow.immunities.includes(att)) return 0;
@@ -138,9 +138,9 @@ namespace Types {
 	}
 
 	export function getEffectivenessText(effectiveness: number, defenderName: string): string {
+		if (effectiveness === 0) return `It does't affect ${defenderName}...`;
 		if (effectiveness >= 2) return "It's super effective!";
 		if (effectiveness <= 0.5) return "It's not very effective...";
-		if (effectiveness === 0) return `It does't affect ${defenderName}...`;
 		return "";
 	}
 }

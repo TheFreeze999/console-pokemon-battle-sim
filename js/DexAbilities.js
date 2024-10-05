@@ -1,28 +1,31 @@
 import Ability from "./Ability.js";
-import Types from "./Type.js";
+import Move from "./Move.js";
+import Types from "./Types.js";
 const DexAbilities = {
     no_ability: new Ability('no_ability', 'No Ability'),
     rough_skin: new Ability('rough_skin', 'Rough Skin', {
         handler: [{
-                onMovePriority: 50,
-                async onMove(data, target, wielder, sourceBattler) {
-                    if (!Array.isArray(target) || !sourceBattler)
-                        return;
-                    if (!data.move.isStandardDamagingAttack())
+                onMoveSuccessPriority: 100,
+                async onMoveSuccess(data, target, wielder, user) {
+                    if (!user || user === wielder)
                         return;
                     if (data.move.contact !== true)
                         return;
-                    await this.runEvent('Damage', { amount: sourceBattler.stats.hp / 8 }, sourceBattler, wielder, DexAbilities.rough_skin);
+                    await this.runEvent('Damage', {
+                        amount: user.stats.hp / 8
+                    }, user, wielder, DexAbilities.rough_skin);
                 },
-                onSourceEffectDamagePriority: 101,
-                async onSourceEffectDamage(data, target, wielder, sourceBattler, sourceEffect) {
-                    await this.showText(`[${sourceBattler?.name}'s Rough Skin]`);
+                onAnyDamagePriority: 101,
+                async onAnyDamage(data, target, wielder, sourceBattler, sourceEffect) {
+                    if (sourceEffect !== DexAbilities.rough_skin)
+                        return;
+                    await this.showText(`[${wielder.name}'s Rough Skin]`);
                 }
             }]
     }),
     magic_guard: new Ability('magic_guard', 'Magic Guard', {
         handler: [{
-                onDamagePriority: 200,
+                onDamagePriority: 150,
                 async onDamage(data) {
                     if (data.isDirect !== true)
                         return null;
@@ -31,30 +34,36 @@ const DexAbilities = {
     }),
     ice_absorb: new Ability('ice_absorb', 'Ice Absorb', {
         handler: [{
-                onMovePriority: 120,
-                async onMove(data, target, wielder, sourceBattler, sourceEffect) {
+                onCheckImmunityPriority: 200,
+                async onCheckImmunity(data, target, wielder, user, sourceEffect) {
+                    if (!(sourceEffect instanceof Move))
+                        return;
+                    if (sourceEffect.type !== Types.Type.ICE)
+                        return;
+                    if (user === wielder)
+                        return;
+                    await this.showText(`[${wielder.name}'s Ice Absorb]`);
+                    return true;
+                },
+                onMovePriority: 99,
+                async onMove(data, target, wielder) {
                     if (data.move.type !== Types.Type.ICE)
                         return;
-                    data.skipDamage = true;
-                    data.skipSecondaryEffects = true;
-                    data.flags ??= {}, data.flags['ice_absorb'] = true;
-                }
-            }, {
-                onMovePriority: 90,
-                async onMove(data, target, wielder, sourceBattler, sourceEffect) {
-                    if (data.flags?.['ice_absorb'] !== true)
-                        return;
-                    const result = await this.runEvent('Heal', { amount: wielder.stats.hp / 4 }, wielder, wielder, DexAbilities.ice_absorb);
-                    if (!result) {
-                        await this.showText(`[${wielder.name}'s Ice Absorb]`);
-                        await this.showText(`${wielder.name} is immune.`);
-                    }
-                },
-                onSourceEffectHealPriority: 101,
-                async onSourceEffectHeal(data, target) {
-                    await this.showText(`[${target.name}'s Ice Absorb]`);
+                    await this.runEvent('Heal', {
+                        amount: wielder.stats.hp / 4
+                    }, wielder, wielder, DexAbilities.ice_absorb);
                 }
             }]
     }),
+    sticky_hold: new Ability('sticky_hold', 'Sticky Hold', {
+        handler: [
+            {
+                onRemoveItemPriority: 101,
+                async onRemoveItem() {
+                    return null;
+                }
+            }
+        ]
+    })
 };
 export default DexAbilities;

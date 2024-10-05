@@ -119,9 +119,9 @@ var Types;
             immunities: [Type.DRAGON],
         },
     };
-    function calcEffectiveness(attackingTypes, defendingTypes) {
+    function calcEffectiveness(attackingTypes, defendingTypes, _MATCHUP_TABLE = Types.MATCHUP_TABLE) {
         const calcSingleInteraction = (att, def) => {
-            const tableRow = Types.MATCHUP_TABLE[def];
+            const tableRow = _MATCHUP_TABLE[def];
             if (tableRow.weaknesses.includes(att))
                 return 2;
             if (tableRow.resistances.includes(att))
@@ -140,12 +140,12 @@ var Types;
     }
     Types.calcEffectiveness = calcEffectiveness;
     function getEffectivenessText(effectiveness, defenderName) {
+        if (effectiveness === 0)
+            return `It does't affect ${defenderName}...`;
         if (effectiveness >= 2)
             return "It's super effective!";
         if (effectiveness <= 0.5)
             return "It's not very effective...";
-        if (effectiveness === 0)
-            return `It does't affect ${defenderName}...`;
         return "";
     }
     Types.getEffectivenessText = getEffectivenessText;

@@ -12,6 +12,7 @@ class Team {
 		for (const battler of battlers) {
 			battler.team = this;
 			if (this.battlers.includes(battler)) continue;
+			battler.id = this.battle.generateBattlerID();
 			this.battlers.push(battler);
 		}
 	}
