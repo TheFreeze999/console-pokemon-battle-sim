@@ -1,10 +1,10 @@
 class Item {
-    name;
     displayName;
     handler = [];
-    constructor(name, displayName, data = {}) {
-        this.name = name;
+    id;
+    constructor(id, displayName, data = {}) {
         this.displayName = displayName;
+        this.id = id;
         Object.assign(this, data);
     }
 }

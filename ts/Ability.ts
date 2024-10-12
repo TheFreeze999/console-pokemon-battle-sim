@@ -3,7 +3,9 @@ import event from "./Event.js";
 
 class Ability implements Effect {
 	handler: event.Handler = [];
-	constructor(public name: string, public displayName: string, data: Partial<Ability.Data> = {}) {
+	id: Effect.ID;
+	constructor(id: string, public displayName: string, data: Partial<Ability.Data> = {}) {
+		this.id = id as Effect.ID;
 		Object.assign(this, data);
 	}
 }

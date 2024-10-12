@@ -6,6 +6,8 @@ import Item from "./Item.js";
 import Types from "./Types.js";
 import Util from "./util.js";
 import Condition from "./Condition.js";
+import Effect from "./Effect.js";
+import event from "./Event.js";
 
 const BATTLER_SIGNATURE = Symbol('BATTLER_SIGNATURE');
 class Battler {
@@ -54,6 +56,16 @@ class Battler {
 
 	get battle() {
 		return this.team.battle;
+	}
+
+	getWieldedEffects(): Effect[] {
+		const effects = [this.ability, ...this.conditions, ...this.getMoves()]
+		if (this.heldItem) effects.push(this.heldItem);
+		return effects;
+	}
+
+	getWieldedEffectsHandlerCombination(): event.Handler {
+		return this.getWieldedEffects().flatMap(effect => effect.handler)
 	}
 
 	setStats(partialStats: Partial<Stats.Base>) {

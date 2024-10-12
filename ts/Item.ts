@@ -3,7 +3,9 @@ import event from "./Event.js";
 
 class Item implements Effect {
 	handler: event.Handler = [];
-	constructor(public name: string, public displayName: string, data: Partial<Item.Data> = {}) {
+	id: Effect.ID;
+	constructor(id: string, public displayName: string, data: Partial<Item.Data> = {}) {
+		this.id = id as Effect.ID;
 		Object.assign(this, data);
 	}
 }

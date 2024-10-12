@@ -15,8 +15,10 @@ class Move implements Effect, Move.Data {
 	contact = false;
 	handler: event.Handler = [];
 	PP = 10;
+	id: Effect.ID;
 
-	constructor(public name: string, public displayName: string, data: Partial<Move.Data> = {}) {
+	constructor(id: string, public displayName: string, data: Partial<Move.Data> = {}) {
+		this.id = id as Effect.ID;
 		Object.assign(this, data);
 	}
 
@@ -30,16 +32,18 @@ class Move implements Effect, Move.Data {
 		return false;
 	}
 
-	calcDamage(attacker: Battler, defender: Battler): number | null {
+	calcDamage(attacker: Battler, defender: Battler, additionalModifiers = 1): number | null {
 		if (!this.isStandardDamagingAttack()) return null;
 		const attackingStat = (this.category === Move.Category.PHYSICAL ? "atk" : "spA");
 		const defendingStat = (this.category === Move.Category.PHYSICAL ? "def" : "spD");
 
-		const typeEffectivenessModifier = Types.calcEffectiveness([this.type], defender.types);
-		const STABModifier = attacker.types.includes(this.type) ? 1.5 : 1;
-		const modifiers = typeEffectivenessModifier * STABModifier;
+		const typeEffectiveness = Types.calcEffectiveness([this.type], defender.types);
+		if (typeEffectiveness === 0) return 0;
 
-		return Util.clamper(1)(Math.floor((this.basePower + attacker.getEffectiveStats()[attackingStat] - defender.getEffectiveStats()[defendingStat]) * Util.Random.int(85, 100) / 100 * modifiers));
+		const STABModifier = attacker.types.includes(this.type) ? 1.5 : 1;
+		const modifiers = additionalModifiers * STABModifier;
+
+		return Util.clamper(1)(Math.floor((this.basePower * attacker.getEffectiveStats()[attackingStat] / defender.getEffectiveStats()[defendingStat]) * Util.Random.int(100, 100) / 100 * modifiers));
 	}
 
 	isStandardDamagingAttack() {

@@ -1,125 +1,124 @@
-import Condition from "./Condition.js";
+import Battle from "./Battle.js";
+import DexAbilities from "./DexAbilities.js";
+import DexConditions from "./DexConditions.js";
+import DexItems from "./DexItems.js";
+import DexMoves from "./DexMoves.js";
 import Move from "./Move.js";
 import Types from "./Types.js";
 import Util from "./util.js";
-const CLAUSES = [{
-        onDamagePriority: 500,
-        async onDamage(data, target) {
-            if (target.fainted)
-                return null;
-        },
-        onHealPriority: 500,
-        async onHeal(data, target) {
-            if (target.fainted)
-                return null;
+const COMBINED_HANDLER_FROM_ALL_DEXES = [];
+{
+    const allDexes = [DexAbilities, DexItems, DexConditions, DexMoves];
+    for (const dex of allDexes) {
+        for (const effectName in dex) {
+            if (!dex[effectName]?.handler)
+                continue;
+            COMBINED_HANDLER_FROM_ALL_DEXES.push(...dex[effectName].handler);
         }
-    }, {
-        onDamagePriority: 101,
-        async onDamage(data, target) {
-            if (data.amount <= 0 || target.currentHP <= 0)
-                return null;
-        },
-        onHealPriority: 101,
-        async onHeal(data, target) {
-            if (data.amount <= 0 || target.currentHP >= target.stats.hp)
-                return null;
-        },
-        onApplyConditionPriority: 101,
-        async onApplyCondition(data, target) {
-            if (!(data.condition instanceof Condition))
-                return null;
-            if (data.condition.isStatus && target.hasStatusCondition()) {
-                return null;
-            }
-        }
-    }];
+    }
+}
+////////////////////////////////////////////////////////////////////////////////////////////////
+const CLAUSES = [{}];
 const BEFORE_EXECUTION = [{
-        onDamagePriority: 101,
+        onDamagePriority: 105,
         async onDamage(data, target) {
-            if (data.typeEffectivenessText)
-                await this.showText(data.typeEffectivenessText);
-            if (data.recoil?.isRecoil && data.recoil.showText)
-                await this.showText(`${target.name} was hurt by recoil.`);
+            if (target.currentHP <= 0)
+                return null;
+            if (target.fainted)
+                return null;
+            if (!target.active)
+                return null;
+            data.amount = Math.floor(data.amount);
+            if (data.amount <= 0)
+                return null;
+        },
+        onHealPriority: 105,
+        async onHeal(data, target) {
+            if (target.currentHP >= target.stats.hp)
+                return null;
+            if (target.fainted)
+                return null;
+            if (!target.active)
+                return null;
+            data.amount = Math.floor(data.amount);
+            if (data.amount <= 0)
+                return null;
+        },
+        onMovePriority: 105,
+        async onMove(data, target, _, source) {
+            if (!source || source.fainted)
+                return null;
+            if (Array.isArray(target) && target.every(b => b.fainted))
+                return null;
+            if (!data.move.verifyCorrectTargetSelection(source, target))
+                return null;
+        },
+        onFaintPriority: 105,
+        async onFaint(data, target) {
+            if (!target.active)
+                return null;
         }
     }];
 const EXECUTION = [{
         onDamagePriority: 100,
         async onDamage(data, target) {
-            const amountDealt = target.dealDamage(data.amount);
-            await this.showText(`${target.name} took ${amountDealt} damage!`);
+            data.amount = target.dealDamage(data.amount);
+            await this.showText(`${target.name} took ${data.amount} damage!`);
             await this.showText(`${target.name} has ${target.currentHP} HP remaining.`);
-            if (target.fainted)
-                await this.runEvent(`Faint`, {}, target);
         },
         onHealPriority: 100,
         async onHeal(data, target) {
-            const amountHealed = target.heal(data.amount);
-            await this.showText(`${target.name} was healed by ${amountHealed} HP!`);
+            data.amount = target.heal(data.amount);
+            await this.showText(`${target.name} was healed by ${data.amount} HP!`);
             await this.showText(`${target.name} now has ${target.currentHP} HP.`);
         },
-        onGetTypeEffectivenessPriority: 100,
-        async onGetTypeEffectiveness(data, target, _, user, move) {
-            if (!(move instanceof Move))
-                return;
-            return Types.calcEffectiveness([move.type], target.types);
-        },
         onMovePriority: 100,
-        async onMove(data, target, _, user, sourceEffect) {
-            if (user?.fainted !== false)
-                return null;
-            if (!data.move.verifyCorrectTargetSelection(user, target))
-                return null;
-            if (Array.isArray(target) && target.every(b => b.fainted))
-                return null;
-            await this.showText(`> ${user.name} used ${data.move.displayName}!`);
-            if (!Array.isArray(target))
+        async onMove(data, target, _, source) {
+            await this.showText(`${source.name} used ${data.move.displayName}!`);
+            if (target instanceof Battle)
                 return;
-            data.failed ??= false;
-            for (const targetBattler of target) {
-                if (targetBattler.fainted)
-                    continue;
-                if (data.move.isStandardDamagingAttack()) {
-                    let skipDamage = data.skipDamage ?? false;
-                    const typeEffectiveness = await this.runEvent('GetTypeEffectiveness', 1, targetBattler, user, data.move);
-                    const immunityCheck = await this.runEvent('CheckImmunity', false, targetBattler, user, data.move);
-                    const isImmune = typeEffectiveness === 0 || immunityCheck === true;
-                    if (isImmune) {
-                        skipDamage = true;
-                        await this.showText(Types.getEffectivenessText(0, targetBattler.name));
+            let allSecondariesFailed = true;
+            for (const defender of target) {
+                if (data.move.isStandardDamagingAttack())
+                    dealDamage: {
+                        const typeEffectiveness = await this.getTypeEffectiveness(defender, source, data.move);
+                        if (typeEffectiveness !== 1)
+                            await this.showText(Types.getEffectivenessText(typeEffectiveness, defender.name));
+                        if (typeEffectiveness === 0)
+                            break dealDamage;
+                        const damageMultiplier = await this.getDamageMultiplier(defender, source, data.move);
+                        const baseDamage = data.move.calcDamage(source, defender, typeEffectiveness * damageMultiplier);
+                        if (!baseDamage)
+                            break dealDamage;
+                        await this.runEvent('Damage', { amount: baseDamage, isDirect: true }, defender, source, data.move);
                     }
-                    let damageDealt = false;
-                    if (!skipDamage) {
-                        const initialDamageValue = data.move.calcDamage(user, targetBattler);
-                        const damageMultiplier = await this.runEvent('GetDamageMultiplier', 1, targetBattler, user, data.move);
-                        const damageAmount = (initialDamageValue ?? 0) * (damageMultiplier ?? 0);
-                        if (damageAmount) {
-                            if (typeof typeEffectiveness === "number" && typeEffectiveness !== 1 && !isImmune)
-                                await this.showText(Types.getEffectivenessText(typeEffectiveness, targetBattler.name));
-                            const damageEvent = await this.runEvent('Damage', {
-                                amount: damageAmount,
-                                isDirect: true
-                            }, targetBattler, user, data.move);
-                            damageDealt = !!damageEvent;
-                        }
-                    }
-                    if (damageDealt) {
-                        await this.runEvent('DamagingHit', {}, targetBattler, user, data.move);
-                    }
-                }
-                if (data.skipSecondaryEffects !== true) {
-                    const moveSecondaryResult = await this.runEvent('ApplyMoveSecondary', { allFailed: false }, targetBattler, user, data.move);
-                    if (moveSecondaryResult?.allFailed === true) {
-                        data.failed = true;
-                    }
-                }
-                if (data.failed === false)
-                    await this.runEvent('MoveSuccess', data, target, user, sourceEffect);
+                const secondaryResult = await this.runEvent('ApplyMoveSecondary', { allFailed: false }, defender, source, data.move);
+                if (secondaryResult && !secondaryResult.allFailed)
+                    allSecondariesFailed = false;
             }
+            data.failed = allSecondariesFailed;
         },
         onFaintPriority: 100,
         async onFaint(data, target) {
-            target.fainted = true;
             await this.showText(`${target.name} fainted!`);
+        },
+        onGetTypeEffectivenessPriority: 100,
+        async onGetTypeEffectiveness(data, target, _, source, move) {
+            if (!(move instanceof Move))
+                return;
+            data.effectiveness = Types.calcEffectiveness([move.type], target.types, data.matchupTable);
+        },
+        onApplyConditionPriority: 100,
+        async onApplyCondition(data, target) {
+            target.conditions.add(data.condition);
+            data.message ??= `${target.name} now has ${data.condition.displayName}!`;
+            await this.showText(data.message);
+        },
+        onRemoveConditionPriority: 100,
+        async onRemoveCondition(data, target) {
+            target.conditions.delete(data.condition);
+            data.message ??= `${target.name} no longer has ${data.condition.displayName}.`;
+            await this.showText(data.message);
         },
         onRemoveItemPriority: 100,
         async onRemoveItem(data, target) {
@@ -130,40 +129,38 @@ const EXECUTION = [{
         onStatBoostPriority: 100,
         async onStatBoost(data, target) {
             const changes = target.applyBoosts(data.boosts);
-            if (Object.entries(changes).length === 0)
-                return null;
-            for (const [stat, diff] of Util.objectEntries(changes)) {
-                let text = diff > 0 ? 'rose' : 'fell';
-                if (diff === 2)
-                    text += ' sharply';
-                if (diff === -2)
-                    text += ' harshly';
-                if (Math.abs(diff) >= 3)
-                    text += ' drastically';
-                await this.showText(`${target.name}'s ${stat} ${text}!`);
+            for (const [stat, change] of Util.objectEntries(changes)) {
+                let text = `${target.name}'s ${stat}`;
+                if (change > 0)
+                    text += " rose";
+                else
+                    text += " fell";
+                if (change === 2)
+                    text += " sharply";
+                else if (change === -2)
+                    text += " harshly";
+                else if (Math.abs(change) >= 3)
+                    text += " drastically";
+                text += "!";
+                await this.showText(text);
             }
-        },
-        onApplyConditionPriority: 100,
-        async onApplyCondition(data, target, wielder, sourceBattler) {
-            if (!(data.condition instanceof Condition))
-                return null;
-            target.conditions.add(data.condition);
-            await this.runEvent('ConditionGetApplied', {}, target, sourceBattler, data.condition);
-        },
-        onRemoveConditionPriority: 100,
-        async onRemoveCondition(data, target, wielder, sourceBattler) {
-            if (!(data.condition instanceof Condition))
-                return null;
-            target.conditions.delete(data.condition);
-            await this.runEvent('ConditionGetRemoved', {}, target, sourceBattler, data.condition);
-        },
+        }
     }];
 const AFTER_EXECUTION = [{
-        onMovePriority: 99,
+        onDamagePriority: 95,
+        async onDamage(data, target, _, source, cause) {
+            if (data.isDirect) {
+                await this.runEvent('DamagingHit', { ...data }, target, source, cause);
+            }
+            if (target.currentHP <= 0) {
+                await this.runEvent('Faint', {}, target, source, cause);
+            }
+        },
+        onMovePriority: 95,
         async onMove(data) {
             if (data.failed === true)
-                await this.showText(`But it failed!`);
-        },
+                await this.showText('But it failed...');
+        }
     }];
-const GLOBAL_EVENT_HANDLER = [...CLAUSES, ...BEFORE_EXECUTION, ...EXECUTION, ...AFTER_EXECUTION,];
+const GLOBAL_EVENT_HANDLER = [...COMBINED_HANDLER_FROM_ALL_DEXES, ...CLAUSES, ...BEFORE_EXECUTION, ...EXECUTION, ...AFTER_EXECUTION,];
 export default GLOBAL_EVENT_HANDLER;

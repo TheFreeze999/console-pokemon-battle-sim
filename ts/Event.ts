@@ -5,6 +5,8 @@ import Effect from "./Effect.js";
 import GLOBAL_EVENT_HANDLER from "./GlobalEventHandler.js";
 import Move from "./Move.js";
 import Stats from "./Stats.js";
+import Team from "./Team.js";
+import Types from "./Types.js";
 import Util from "./util.js";
 
 namespace event {
@@ -30,18 +32,17 @@ namespace event {
 		Residual: {};
 		RemoveItem: { reasonText?: string };
 		ApplyMoveSecondary: { allFailed: boolean };
-		DamagingHit: {};
-		GetDamageMultiplier: number;
-		GetTypeEffectiveness: number;
-		CheckImmunity: boolean;
+		DamagingHit: DataTypes["Damage"];
+		GetDamageMultiplier: { multiplier: number };
+		GetTypeEffectiveness: { effectiveness: number, matchupTable: Types.MatchupTable };
+		CheckImmunity: { immune: boolean };
 		MoveSuccess: DataTypes["Move"];
 		StatBoost: { boosts: Partial<Stats.Boostable> };
-		ApplyCondition: { condition: Condition };
-		RemoveCondition: { condition: Condition };
-		ConditionGetApplied: {};
-		ConditionGetRemoved: {};
+		ApplyCondition: { condition: Condition, message?: string };
+		RemoveCondition: { condition: Condition, message?: string };
 	}
 	export type Name = keyof DataTypes;
+	export type Data = DataTypes[Name]
 
 	export type TargetTypes = {
 		Damage: Battler;
@@ -58,17 +59,15 @@ namespace event {
 		StatBoost: Battler;
 		ApplyCondition: Battler;
 		RemoveCondition: Battler;
-		ConditionGetApplied: Battler;
-		ConditionGetRemoved: Battler;
 	}
 
 	export type TargetType<N extends Name> = N extends keyof TargetTypes ? TargetTypes[N] : (Battler[] | Battler | Battle);
 
 
-	export type ListenerFunction<K extends Name = Name> = (this: Battle, data: event.DataTypes[K], target: TargetType<K>, wielder: Battler, sourceBattler: Battler | null, sourceEffect: Effect | null) => Promise<event.DataTypes[K] | null | void>;
+	export type ListenerFunction<K extends Name = Name> = (this: Battle, data: event.DataTypes[K], target: TargetType<K>, wielder: Battler | null, source: Battler | null, cause: Effect | null) => Promise<event.DataTypes[K] | null | void>;
 
 
-	type TargetRelation = (`${'' | 'Source'}${'' | 'Ally' | 'Foe'}` | 'Any') | 'SourceEffect'
+	type TargetRelation = (`${'Target' | 'Source'}${'' | 'Ally' | 'Foe'}`) | 'Cause'
 	export type HandlerMethods = ({
 		[K in Name as `on${K}`]?: ListenerFunction<K>;
 	} & {

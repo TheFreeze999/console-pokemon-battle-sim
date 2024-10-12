@@ -1,10 +1,10 @@
 class Team {
     battle;
-    name;
+    id;
     battlers = [];
-    constructor(battle, name) {
+    constructor(battle, id) {
         this.battle = battle;
-        this.name = name;
+        this.id = id;
     }
     addBattlers(...battlers) {
         for (const battler of battlers) {

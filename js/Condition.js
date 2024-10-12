@@ -1,11 +1,11 @@
 class Condition {
-    name;
     displayName;
     handler = [];
     isStatus = false;
-    constructor(name, displayName, data = {}) {
-        this.name = name;
+    id;
+    constructor(id, displayName, data = {}) {
         this.displayName = displayName;
+        this.id = id;
         Object.assign(this, data);
     }
 }

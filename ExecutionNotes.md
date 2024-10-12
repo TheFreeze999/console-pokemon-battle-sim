@@ -47,3 +47,19 @@ Parting Shot
 Rain Dance
 Aurora Veil
 Reflect
+
+# Event Code
+battle.runEvent('Foo', data: any, target: Battler, source: Battler, cause: Effect)
+	- Calls onFoo on all of target's wielded effects' handlers.
+		- Calls onAllyFoo on all of target's allies' wielded effects' handlers.
+		- Calls onFoeFoo on all of target's foes' wielded effects' handlers.
+	- Calls onSourceFoo on all of source's wielded effects' handlers.
+		- Calls onAllySourceFoo on all of target's allies' wielded effects' handlers.
+		- Calls onSourceFoeFoo on all of target's foes' wielded effects' handlers.
+	
+	- Calls onCauseFoo on cause's handlers.
+	
+	- Calls onFoo on Global event handlers.
+
+	- Calls onAnyFoo on every effect from all Dexes.
+

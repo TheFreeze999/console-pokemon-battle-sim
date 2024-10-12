@@ -41,6 +41,15 @@ class Battler {
     get battle() {
         return this.team.battle;
     }
+    getWieldedEffects() {
+        const effects = [this.ability, ...this.conditions, ...this.getMoves()];
+        if (this.heldItem)
+            effects.push(this.heldItem);
+        return effects;
+    }
+    getWieldedEffectsHandlerCombination() {
+        return this.getWieldedEffects().flatMap(effect => effect.handler);
+    }
     setStats(partialStats) {
         this.stats = { ...this.stats, ...partialStats };
         if (this.currentHP < 0)

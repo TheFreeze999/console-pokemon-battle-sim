@@ -4,7 +4,7 @@ import Battler from "./Battler.js";
 class Team {
 	battlers: Battler[] = [];
 
-	constructor(public battle: Battle, public name: string) {
+	constructor(public battle: Battle, public id: Team.ID) {
 
 	}
 
@@ -32,6 +32,10 @@ class Team {
 	hasLost() {
 		return this.battlers.every(b => b.fainted);
 	}
+}
+
+namespace Team {
+	export type ID = `T-${number}` & { _brand: 'Team.ID' };
 }
 
 export default Team;

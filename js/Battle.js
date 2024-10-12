@@ -1,28 +1,41 @@
 import Battler from "./Battler.js";
-import event from "./Event.js";
+import GLOBAL_EVENT_HANDLER from "./GlobalEventHandler.js";
 import Team from "./Team.js";
+import Types from "./Types.js";
 import Util from "./util.js";
-const WIELDER = Symbol('WIELDER');
-const PRIORITY = Symbol('WIELDER');
 class Battle {
+    id = 'Battle-0';
     teams;
     turn = 1;
     battlerIDGen = Util.createIDGen();
     generateBattlerID() { return `B-${this.battlerIDGen.next().value}`; }
-    eventState = {};
+    effectStates = {};
+    /** Gets the state tied to each Battler-Effect pair
+     * @param target By default, ID of last `runEvent` target that was a battler.
+     * @param effect By default, name of last `cause` that was passed into `runEvent`.
+     */
+    getEffectState(target, effect) {
+        if (typeof target !== "string")
+            target = target.id;
+        if (typeof effect !== 'string')
+            effect = effect.id;
+        this.effectStates[effect] ??= {};
+        this.effectStates[effect][target] ??= {};
+        return this.effectStates[effect][target];
+    }
     constructor() {
         this.initTeams();
     }
     initTeams() {
-        const team0 = new Team(this, 'team0');
-        const team1 = new Team(this, 'team1');
+        const team0 = new Team(this, 'T-0');
+        const team1 = new Team(this, 'T-1');
         this.teams = [team0, team1];
     }
     logStatus() {
         for (const team of this.teams) {
-            console.log(`// TEAM: ${team.name}`);
+            console.log(`// TEAM: ${team.id}`);
             for (const battler of team.battlers) {
-                console.log(`${battler.name}: ${Util.stringify(battler.stats)}`);
+                console.log(`${battler.name} [${battler.id}]:`, battler.stats);
             }
             console.log('\n');
         }
@@ -47,113 +60,75 @@ class Battle {
             // await Util.delay(500);
         }
     }
-    async runEvent(name, data, target = null, sourceBattler = null, sourceEffect = null) {
-        target ??= this;
-        let listenerFunctions = [];
-        if (sourceBattler !== null) {
-            listenerFunctions.push(...this.getBattlerListenerFunctions(`onSource${name}`, sourceBattler));
-            for (const activeAllyOrSelf of sourceBattler.getActiveAlliesAndSelf()) {
-                listenerFunctions.push(...this.getBattlerListenerFunctions(`onSourceAlly${name}`, activeAllyOrSelf));
-            }
-            for (const activeFoe of sourceBattler.getActiveFoes()) {
-                listenerFunctions.push(...this.getBattlerListenerFunctions(`onSourceFoe${name}`, activeFoe));
+    async runEvent(eventName, data, target, source = null, cause = null) {
+        let listenerFns = [];
+        if (Array.isArray(target)) {
+            for (const targetBattler of target) {
+                listenerFns.push(...this.getBattlerListenerFns(eventName, targetBattler, false));
             }
         }
-        for (const targetBattler of (Array.isArray(target) ? target : [target])) {
-            if (Battler.isBattler(targetBattler)) {
-                listenerFunctions.push(...this.getBattlerListenerFunctions(`on${name}`, targetBattler));
-                for (const activeAllyOrSelf of targetBattler.getActiveAlliesAndSelf()) {
-                    listenerFunctions.push(...this.getBattlerListenerFunctions(`onAlly${name}`, activeAllyOrSelf));
-                }
-                for (const activeFoe of targetBattler.getActiveFoes()) {
-                    listenerFunctions.push(...this.getBattlerListenerFunctions(`onFoe${name}`, activeFoe));
-                }
+        else if (Battler.isBattler(target)) {
+            listenerFns.push(...this.getBattlerListenerFns(eventName, target, false));
+        }
+        else { /* logic for if target is battle */ }
+        if (source) {
+            listenerFns.push(...this.getBattlerListenerFns(eventName, source, true));
+        }
+        if (cause) {
+            for (const obj of cause.handler) {
+                const fn = obj[`onCause${eventName}`];
+                if (!fn)
+                    continue;
+                const priority = obj[`onCause${eventName}Priority`] ?? 0;
+                listenerFns.push({ fn, priority, wielder: null });
             }
         }
-        if (target === this) {
-            listenerFunctions.push(...this.getBattleListenerFunctions(`on${name}`));
+        for (const obj of GLOBAL_EVENT_HANDLER) {
+            const fn = obj[`on${eventName}`];
+            if (!fn)
+                continue;
+            const priority = obj[`on${eventName}Priority`] ?? 0;
+            listenerFns.push({ fn, priority, wielder: null });
         }
-        if (sourceEffect) {
-            listenerFunctions.push(...this.getEffectListenerFunctions(`onSourceEffect${name}`, sourceEffect));
-        }
-        for (const activeBattler of this.getAllActive()) {
-            listenerFunctions.push(...this.getBattlerListenerFunctions(`onAny${name}`, activeBattler));
-        }
-        listenerFunctions = listenerFunctions.sort((a, b) => {
-            // @ts-expect-error
-            return (b[PRIORITY] ?? 0) - (a[PRIORITY] ?? 0);
-        });
-        const oldEffectState = this.eventState;
-        let nullResultOccured = false;
-        for (const listenerFunction of listenerFunctions) {
-            // @ts-expect-error
-            const wielder = listenerFunction[WIELDER];
-            const result = await listenerFunction.call(this, data, target, wielder, sourceBattler, sourceEffect);
-            if (result === null) {
-                nullResultOccured = true;
-                break;
-            }
-            if (result !== undefined) {
+        listenerFns.sort((objA, objB) => objB.priority - objA.priority);
+        for (const { fn, wielder } of listenerFns) {
+            const result = await fn.call(this, data, target, wielder, source, cause);
+            if (result === null)
+                return null;
+            if (result !== undefined)
                 data = result;
-            }
         }
-        for (const listenerFunction of listenerFunctions) {
-            // @ts-expect-error
-            delete listenerFunction[WIELDER];
-        }
-        this.eventState = oldEffectState;
-        return nullResultOccured ? null : data;
+        return data;
     }
-    getBattlerListenerFunctions(methodName, battler) {
-        let combinedHandler = [
-            ...event.globalHandler,
-            ...battler.ability.handler,
-            ...(battler.heldItem?.handler ?? []),
-        ];
-        for (const condition of battler.conditions) {
-            combinedHandler.push(...condition.handler);
+    getBattlerListenerFns(eventName, battler, isSource) {
+        const sourcePrefix = isSource ? 'Source' : 'Target';
+        let listenerFns = [];
+        for (const obj of battler.getWieldedEffectsHandlerCombination()) {
+            const fn = obj[`on${sourcePrefix}${eventName}`];
+            if (!fn)
+                continue;
+            const priority = obj[`on${sourcePrefix}${eventName}Priority`] ?? 0;
+            listenerFns.push({ fn, priority, wielder: battler });
         }
-        combinedHandler = combinedHandler.sort((a, b) => (b[`${methodName}Priority`] ?? 0) - (a[`${methodName}Priority`] ?? 0));
-        const listeners = combinedHandler.map(handler => {
-            if (handler[methodName]) {
-                // @ts-expect-error
-                handler[methodName][PRIORITY] = handler[`${methodName}Priority`] ?? 0;
+        for (const ally of battler.getActiveAlliesAndSelf()) {
+            for (const obj of ally.getWieldedEffectsHandlerCombination()) {
+                const fn = obj[`on${sourcePrefix}Ally${eventName}`];
+                if (!fn)
+                    continue;
+                const priority = obj[`on${sourcePrefix}Ally${eventName}Priority`] ?? 0;
+                listenerFns.push({ fn, priority, wielder: ally });
             }
-            return handler[methodName];
-        }).filter(l => l != undefined);
-        for (const listener of listeners) {
-            // @ts-expect-error
-            listener[WIELDER] = battler;
         }
-        return listeners;
-    }
-    getBattleListenerFunctions(methodName) {
-        let combinedHandler = [
-            ...event.globalHandler,
-        ];
-        combinedHandler = combinedHandler.sort((a, b) => (b[`${methodName}Priority`] ?? 0) - (a[`${methodName}Priority`] ?? 0));
-        const listeners = combinedHandler.map(handler => {
-            if (handler[methodName]) {
-                // @ts-expect-error
-                handler[methodName][PRIORITY] = handler[`${methodName}Priority`] ?? 0;
+        for (const foe of battler.getActiveFoes()) {
+            for (const obj of foe.getWieldedEffectsHandlerCombination()) {
+                const fn = obj[`on${sourcePrefix}Foe${eventName}`];
+                if (!fn)
+                    continue;
+                const priority = obj[`on${sourcePrefix}Foe${eventName}Priority`] ?? 0;
+                listenerFns.push({ fn, priority, wielder: foe });
             }
-            return handler[methodName];
-        }).filter(l => l != undefined);
-        return listeners;
-    }
-    getEffectListenerFunctions(methodName, effect) {
-        let combinedHandler = [
-            ...effect.handler,
-        ];
-        combinedHandler = combinedHandler.sort((a, b) => (b[`${methodName}Priority`] ?? 0) - (a[`${methodName}Priority`] ?? 0));
-        const listeners = combinedHandler.map(handler => {
-            if (handler[methodName]) {
-                // @ts-expect-error
-                handler[methodName][PRIORITY] = handler[`${methodName}Priority`] ?? 0;
-            }
-            return handler[methodName];
-        }).filter(l => l != undefined);
-        return listeners;
+        }
+        return listenerFns;
     }
     getWinner() {
         if (this.teams[0].hasLost())
@@ -168,6 +143,13 @@ class Battle {
             await this.runEvent('Residual', {}, battler);
         }
         this.turn++;
+    }
+    async getDamageMultiplier(defender, attacker, move, baseMultiplier = 1) {
+        const damageMultiplierResult = await this.runEvent('GetDamageMultiplier', { multiplier: baseMultiplier }, defender, attacker, move);
+        return damageMultiplierResult?.multiplier ?? baseMultiplier;
+    }
+    async getTypeEffectiveness(defender, attacker, move, baseEffectiveness = 1, matchupTable = Types.getMatchupTable()) {
+        return (await this.runEvent('GetTypeEffectiveness', { effectiveness: baseEffectiveness, matchupTable }, defender, attacker, move))?.effectiveness ?? 1;
     }
 }
 export default Battle;
