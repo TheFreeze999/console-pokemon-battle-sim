@@ -7,7 +7,6 @@ import Types from "./Types.js";
 import Util from "./util.js";
 import Condition from "./Condition.js";
 import Effect from "./Effect.js";
-import event from "./Event.js";
 import Ability from "./Ability.js";
 
 const BATTLER_SIGNATURE = Symbol('BATTLER_SIGNATURE');

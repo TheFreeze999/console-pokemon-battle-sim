@@ -1,7 +1,7 @@
 import Battle from "./Battle.js";
 import Battler from "./Battler.js";
 import Effect from "./Effect.js";
-import event from "./Event.js";
+import Evt from "./Evt.js";
 import Stats from "./Stats.js";
 import Types from "./Types.js";
 import Util from "./util.js";
@@ -15,6 +15,8 @@ class Move implements Effect, Move.Data {
 	contact = false;
 	PP = 10;
 	id: Effect.ID;
+
+	handler: Evt.Handler = {};
 
 	constructor(id: string, public displayName: string, data: Partial<Move.Data> = {}) {
 		this.id = id as Effect.ID;
@@ -62,7 +64,7 @@ namespace Move {
 		STATUS = 'STATUS',
 	}
 
-	export type Data = Pick<Move, "category" | "targeting" | "basePower" | "type" | "contact" | "PP">
+	export type Data = Pick<Move, "category" | "targeting" | "basePower" | "type" | "contact" | "PP" | "handler">
 }
 
 

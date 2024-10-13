@@ -3,11 +3,9 @@ import DexAbilities from "./DexAbilities.js";
 import DexConditions from "./DexConditions.js";
 import DexItems from "./DexItems.js";
 import Effect from "./Effect.js";
-import event from "./Event.js";
-import Move from "./Move.js";
-import Stats from "./Stats.js";
+import Evt from "./Evt.js";
+import GLOBAL_EVENT_HANDLERS from "./GlobalEvtHandlers.js";
 import Team from "./Team.js";
-import Types from "./Types.js";
 import Util from "./util.js";
 
 class Battle {
@@ -84,15 +82,117 @@ class Battle {
 		}
 	}
 
-
-
-
-
-
 	getWinner() {
 		if (this.teams[0].hasLost()) return this.teams[1];
 		if (this.teams[1].hasLost()) return this.teams[0];
 		return null;
+	}
+
+
+	async runEvt<N extends Evt.Name>(evt: Evt<N>) {
+		while (this.getRemainingListenersForEvt(evt).length > 0) {
+			const listener = this.getRemainingListenersForEvt(evt)[0]!
+
+			evt.handledCallbacks.push(listener.callback)
+
+			if (evt.listenerBlacklists.some(lb => lb.checker(listener) === true))
+				continue;
+
+			const result = await listener.callback.call(this, evt, listener);
+
+
+			if (result === null) return null;
+			if (result !== undefined) evt.data = result;
+		}
+
+		return evt.data;
+	}
+
+	private getRemainingListenersForEvt<N extends Evt.Name>(evt: Evt<N>) {
+		const listeners: Evt.Listener<N>[] = [];
+		if (Battler.isBattler(evt.target)) {
+			listeners.push(...this.getListenersFromBattlerEffects(evt, evt.target, "Target", "self"));
+
+			for (const ally of evt.target.getActiveAlliesAndSelf()) {
+				listeners.push(...this.getListenersFromBattlerEffects(evt, ally, "Target", "ally"));
+			}
+			for (const foe of evt.target.getActiveFoes()) {
+				listeners.push(...this.getListenersFromBattlerEffects(evt, foe, "Target", "foe"));
+			}
+		}
+
+		if (Battler.isBattler(evt.source)) {
+			listeners.push(...this.getListenersFromBattlerEffects(evt, evt.source, "Source", "self"));
+
+			for (const ally of evt.source.getActiveAlliesAndSelf()) {
+				listeners.push(...this.getListenersFromBattlerEffects(evt, ally, "Source", "ally"));
+			}
+			for (const foe of evt.source.getActiveFoes()) {
+				listeners.push(...this.getListenersFromBattlerEffects(evt, foe, "Source", "foe"));
+			}
+		}
+
+		if (evt.cause) {
+			const callbackName: Evt.CallbackName<N> = `onCause${evt.name}`;
+			const callback = evt.cause.handler[callbackName];
+			if (callback) {
+				const listener: Evt.Listener<N> = {
+					evt,
+					priority: evt.cause.handler[`${callbackName}Priority`] ?? 0,
+					callback: callback as any,
+					origin: { cause: evt.cause }
+				}
+				listeners.push(listener)
+			}
+		}
+
+		for (const handler of GLOBAL_EVENT_HANDLERS) {
+			const callbackName: Evt.CallbackName<N> = `on${evt.name}`;
+			const callback = handler[callbackName];
+			if (callback) {
+				const listener: Evt.Listener<N> = {
+					evt,
+					priority: handler[`${callbackName}Priority`] ?? 0,
+					callback: callback as any,
+					origin: 'global'
+				}
+				listeners.push(listener)
+			}
+		}
+
+		listeners.sort((a, b) => b.priority - a.priority);
+		return listeners.filter(listener => !evt.handledCallbacks.includes(listener.callback));
+	}
+
+	private getListenersFromBattlerEffects<N extends Evt.Name>(evt: Evt<N>, battler: Battler, targetOrSource: 'Target' | 'Source', relation: 'self' | 'ally' | 'foe') {
+		const listeners: Evt.Listener<N>[] = [];
+		for (const effect of battler.getWieldedEffects()) {
+			const relationStr = ({
+				'self': '',
+				'ally': 'Ally',
+				'foe': 'Foe'
+			} as const)[relation]
+			const callbackName: Evt.CallbackName<N> = `on${targetOrSource}${relationStr}${evt.name}`;
+			const callback = effect.handler[`${callbackName}`];
+			if (!callback) continue;
+
+			let origin: Evt.Listener<N>["origin"];
+
+			if (targetOrSource === 'Target') {
+				origin = { target: battler, relation, wieldedEffect: effect }
+			} else {
+				origin = { source: battler, relation, wieldedEffect: effect }
+			}
+
+			const listener: Evt.Listener<N> = {
+				evt,
+				priority: effect.handler[`${callbackName}Priority`] ?? 0,
+				callback: callback as any,
+				origin
+			}
+			listeners.push(listener);
+		}
+		return listeners;
 	}
 
 	async endTurn() {

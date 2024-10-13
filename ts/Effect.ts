@@ -1,11 +1,12 @@
 import Battle from "./Battle.js";
 import Battler from "./Battler.js";
-import event from "./Event.js";
+import Evt from "./Evt.js";
 import Team from "./Team.js";
 
 type Effect = {
 	id: Effect.ID;
 	displayName: string;
+	handler: Evt.Handler;
 }
 
 namespace Effect {

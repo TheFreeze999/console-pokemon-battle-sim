@@ -10,6 +10,7 @@ class Move {
     contact = false;
     PP = 10;
     id;
+    handler = {};
     constructor(id, displayName, data = {}) {
         this.displayName = displayName;
         this.id = id;
