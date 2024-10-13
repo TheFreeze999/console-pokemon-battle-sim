@@ -6,7 +6,6 @@ import Team from "./Team.js";
 type Effect = {
 	id: Effect.ID;
 	displayName: string;
-	handler: event.Handler;
 }
 
 namespace Effect {

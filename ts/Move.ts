@@ -13,7 +13,6 @@ class Move implements Effect, Move.Data {
 	basePower = 0;
 	type = Types.Type["???"];
 	contact = false;
-	handler: event.Handler = [];
 	PP = 10;
 	id: Effect.ID;
 
@@ -63,7 +62,7 @@ namespace Move {
 		STATUS = 'STATUS',
 	}
 
-	export type Data = Pick<Move, "category" | "targeting" | "basePower" | "type" | "contact" | "handler" | "PP">
+	export type Data = Pick<Move, "category" | "targeting" | "basePower" | "type" | "contact" | "PP">
 }
 
 

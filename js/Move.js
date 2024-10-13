@@ -8,7 +8,6 @@ class Move {
     basePower = 0;
     type = Types.Type["???"];
     contact = false;
-    handler = [];
     PP = 10;
     id;
     constructor(id, displayName, data = {}) {

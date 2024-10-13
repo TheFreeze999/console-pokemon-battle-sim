@@ -8,6 +8,7 @@ import Util from "./util.js";
 import Condition from "./Condition.js";
 import Effect from "./Effect.js";
 import event from "./Event.js";
+import Ability from "./Ability.js";
 
 const BATTLER_SIGNATURE = Symbol('BATTLER_SIGNATURE');
 class Battler {
@@ -19,8 +20,12 @@ class Battler {
 	currentHP = -1;
 	fainted = false;
 	active = false;
-	ability = DexAbilities.no_ability;
-	heldItem: Item | null = null;
+	abilitySlot: Battler.AbilitySlot = {
+		baseAbility: DexAbilities.no_ability
+	}
+	itemSlot: Battler.ItemSlot = {
+		item: null
+	}
 	conditions = new Set<Condition>();
 
 	data: Record<keyof any, any> = {}
@@ -28,20 +33,19 @@ class Battler {
 	types: Types.Type[] = [Types.Type["???"]];
 
 	/** Move to PP map */
-	moveSlots = new Map<Move, number>();
+	moveSlots: Battler.MoveSlot[] = [];
 
 	getMoves() {
-		return [...this.moveSlots.keys()]
+		return this.moveSlots.map(moveSlot => moveSlot.move);
 	}
 
 	moveHasPPLeft(move: Move) {
-		return Number(this.moveSlots.get(move)) >= 1
+		return !!this.moveSlots.find(moveSlot => moveSlot.move === move && moveSlot.pp > 0)
 	}
 
 	decrementMovePP(move: Move) {
-		const PP = this.moveSlots.get(move)
-		if (typeof PP !== 'number') return;
-		this.moveSlots.set(move, PP - 1);
+		const slot = this.moveSlots.find(moveSlot => moveSlot.move === move);
+		if (slot) slot.pp--;
 	}
 
 	getUsableMoves() {
@@ -58,14 +62,18 @@ class Battler {
 		return this.team.battle;
 	}
 
-	getWieldedEffects(): Effect[] {
-		const effects = [this.ability, ...this.conditions, ...this.getMoves()]
-		if (this.heldItem) effects.push(this.heldItem);
-		return effects;
+	getAbility() {
+		return this.abilitySlot.suppressed === true ? DexAbilities.no_ability : (this.abilitySlot.override ?? this.abilitySlot.baseAbility);
+	}
+	getItem() {
+		return this.itemSlot.suppressed === true ? null : this.itemSlot.item;
 	}
 
-	getWieldedEffectsHandlerCombination(): event.Handler {
-		return this.getWieldedEffects().flatMap(effect => effect.handler)
+	getWieldedEffects(): Effect[] {
+		const effects: Effect[] = [this.getAbility(), ...this.conditions, ...this.getMoves()]
+		const item = this.getItem();
+		if (item) effects.push(item);
+		return effects;
 	}
 
 	setStats(partialStats: Partial<Stats.Base>) {
@@ -104,9 +112,9 @@ class Battler {
 	}
 
 	setMoveset(moves: Move[]) {
-		this.moveSlots.clear();
+		this.moveSlots = []
 		for (const move of moves) {
-			this.moveSlots.set(move, move.PP)
+			this.moveSlots.push({ move, pp: move.PP });
 		}
 	}
 
@@ -156,6 +164,19 @@ class Battler {
 
 namespace Battler {
 	export type ID = `B-${number}` & { _brand: 'Battler.ID' };
+	export type AbilitySlot = {
+		baseAbility: Ability;
+		override?: Ability | null;
+		suppressed?: boolean;
+	}
+	export type ItemSlot = {
+		item: Item | null;
+		suppressed?: boolean;
+	}
+	export type MoveSlot = {
+		move: Move;
+		pp: number;
+	}
 }
 
 export default Battler;

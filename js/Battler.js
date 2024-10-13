@@ -12,24 +12,27 @@ class Battler {
     currentHP = -1;
     fainted = false;
     active = false;
-    ability = DexAbilities.no_ability;
-    heldItem = null;
+    abilitySlot = {
+        baseAbility: DexAbilities.no_ability
+    };
+    itemSlot = {
+        item: null
+    };
     conditions = new Set();
     data = {};
     types = [Types.Type["???"]];
     /** Move to PP map */
-    moveSlots = new Map();
+    moveSlots = [];
     getMoves() {
-        return [...this.moveSlots.keys()];
+        return this.moveSlots.map(moveSlot => moveSlot.move);
     }
     moveHasPPLeft(move) {
-        return Number(this.moveSlots.get(move)) >= 1;
+        return !!this.moveSlots.find(moveSlot => moveSlot.move === move && moveSlot.pp > 0);
     }
     decrementMovePP(move) {
-        const PP = this.moveSlots.get(move);
-        if (typeof PP !== 'number')
-            return;
-        this.moveSlots.set(move, PP - 1);
+        const slot = this.moveSlots.find(moveSlot => moveSlot.move === move);
+        if (slot)
+            slot.pp--;
     }
     getUsableMoves() {
         return this.getMoves().filter(move => this.moveHasPPLeft(move));
@@ -41,14 +44,18 @@ class Battler {
     get battle() {
         return this.team.battle;
     }
-    getWieldedEffects() {
-        const effects = [this.ability, ...this.conditions, ...this.getMoves()];
-        if (this.heldItem)
-            effects.push(this.heldItem);
-        return effects;
+    getAbility() {
+        return this.abilitySlot.suppressed === true ? DexAbilities.no_ability : (this.abilitySlot.override ?? this.abilitySlot.baseAbility);
     }
-    getWieldedEffectsHandlerCombination() {
-        return this.getWieldedEffects().flatMap(effect => effect.handler);
+    getItem() {
+        return this.itemSlot.suppressed === true ? null : this.itemSlot.item;
+    }
+    getWieldedEffects() {
+        const effects = [this.getAbility(), ...this.conditions, ...this.getMoves()];
+        const item = this.getItem();
+        if (item)
+            effects.push(item);
+        return effects;
     }
     setStats(partialStats) {
         this.stats = { ...this.stats, ...partialStats };
@@ -81,9 +88,9 @@ class Battler {
         return amount;
     }
     setMoveset(moves) {
-        this.moveSlots.clear();
+        this.moveSlots = [];
         for (const move of moves) {
-            this.moveSlots.set(move, move.PP);
+            this.moveSlots.push({ move, pp: move.PP });
         }
     }
     static isBattler(b) {

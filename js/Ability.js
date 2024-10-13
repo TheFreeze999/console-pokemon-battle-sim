@@ -1,6 +1,5 @@
 class Ability {
     displayName;
-    handler = [];
     id;
     constructor(id, displayName, data = {}) {
         this.displayName = displayName;

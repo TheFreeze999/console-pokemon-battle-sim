@@ -2,7 +2,6 @@ import Effect from "./Effect.js";
 import event from "./Event.js";
 
 class Condition implements Effect {
-	handler: event.Handler = [];
 	isStatus = false;
 	id: Effect.ID;
 	constructor(id: string, public displayName: string, data: Partial<Condition.Data> = {}) {
@@ -12,7 +11,7 @@ class Condition implements Effect {
 }
 
 namespace Condition {
-	export type Data = Pick<Condition, "handler" | "isStatus">;
+	export type Data = Pick<Condition, "isStatus">;
 }
 
 

@@ -1,6 +1,5 @@
 class Condition {
     displayName;
-    handler = [];
     isStatus = false;
     id;
     constructor(id, displayName, data = {}) {

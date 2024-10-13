@@ -1,8 +1,5 @@
 import Battle from "./Battle.js";
 import Battler from "./Battler.js";
-import DexAbilities from './DexAbilities.js';
-import DexItems from "./DexItems.js";
-import DexMoves from "./DexMoves.js";
 import Types from "./Types.js";
 const battle = new Battle();
 const abra = new Battler('Abra');
@@ -25,24 +22,9 @@ gibble.setStats({
 });
 gibble.types = [Types.Type.DRAGON, Types.Type.GHOST];
 abra.types = [Types.Type.PSYCHIC];
-abra.ability = DexAbilities.water_veil;
-gibble.ability = DexAbilities.guts;
-gibble.heldItem = DexItems.toxic_orb;
-abra.heldItem = DexItems.leftovers;
-abra.setMoveset([DexMoves.tackle, DexMoves.willowisp]);
-gibble.setMoveset([DexMoves.tackle, DexMoves.power_up_punch]);
 battle.teams[0].addBattlers(abra);
 battle.teams[1].addBattlers(gibble);
 battle.start();
-await battle.runEvent('Move', { move: DexMoves.iron_defense }, [abra], abra);
-await battle.runEvent('Move', { move: DexMoves.willowisp }, [abra], gibble);
-await battle.endTurn();
-await battle.runEvent('Move', { move: DexMoves.iron_defense }, [abra], abra);
-await battle.runEvent('Move', { move: DexMoves.swords_dance }, [gibble], gibble);
-await battle.endTurn();
-await battle.runEvent('Move', { move: DexMoves.iron_defense }, [abra], abra);
-await battle.runEvent('Move', { move: DexMoves.tackle }, [abra], gibble);
-await battle.endTurn();
 /* while (battle.getWinner() === null) {
     console.log(`=== Turn ${battle.turn} ===`);
 
