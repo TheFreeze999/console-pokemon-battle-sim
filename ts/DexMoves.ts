@@ -16,8 +16,8 @@ const DexMoves = {
 		basePower: 40,
 		handler: {
 			async onCauseHit(evt) {
-				if (await this.chance([100, 100], evt))
-					await this.runEvt('ApplyCondition', { condition: DexConditions.burn }, evt.target, evt.source, DexMoves.ember);
+				if (await this.chance([10, 100], evt))
+					await this.runEvt('ApplyCondition', { condition: DexConditions.brn }, evt.target, evt.source, DexMoves.ember);
 			}
 		}
 	}),
@@ -74,6 +74,45 @@ const DexMoves = {
 			onCauseApplyMoveSecondaryPriority: 150,
 			async onCauseApplyMoveSecondary({ target, data }) {
 				data.fail = !await this.runEvt('Heal', { amount: target.stats.hp / 2 }, target, target, DexMoves.recover);
+			}
+		}
+	}),
+	rest: new Move('rest', 'Rest', {
+		type: Types.Type.NORMAL,
+		category: Move.Category.STATUS,
+		targeting: Move.Targeting.SELF,
+		handler: {
+			onCauseApplyMoveSecondaryPriority: 150,
+			async onCauseApplyMoveSecondary({ target, data, source }) {
+				if (target.currentHP >= target.stats.hp) {
+					data.fail = true;
+					return;
+				}
+
+				const applyStatusEvt = await this.runEvt('ApplyCondition', { condition: DexConditions.slp }, target, source, DexMoves.rest)
+				if (!applyStatusEvt) {
+					data.fail = true;
+					return;
+				}
+			},
+
+			onCauseApplyConditionPriority: 101,
+			async onCauseApplyCondition({ target, source, data }) {
+				for (const status of [...target.conditions].filter(c => c.isStatus)) {
+					if (status === DexConditions.slp) continue;
+					await this.runEvt('RemoveCondition', { condition: status }, target, source, DexMoves.rest);
+				}
+
+
+			},
+
+			onAnyApplyConditionPriority: 99,
+			async onAnyApplyCondition({ cause, target }) {
+				if (cause !== DexMoves.rest) return;
+				const parent = this.parentEvent;
+				if (parent?.hasName("ApplyMoveSecondary") !== true) return;
+
+				parent.data.fail = !await this.runEvt('Heal', { amount: target.stats.hp - target.currentHP }, target, target, DexMoves.rest);
 			}
 		}
 	})

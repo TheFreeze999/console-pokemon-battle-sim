@@ -130,5 +130,8 @@ class Battler {
     hasStatusCondition() {
         return [...this.conditions].some(c => c.isStatus);
     }
+    hasType(type) {
+        return this.types.includes(type);
+    }
 }
 export default Battler;

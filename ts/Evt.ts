@@ -5,14 +5,14 @@ import Effect from "./Effect.js";
 import Move from "./Move.js";
 
 class Evt<N extends Evt.Name> {
-	listenerBlacklists: Evt.Listener.Blacklist<N>[] = [];
-	handledCallbacks: Evt.Callback<N>[] = []
+	listenerBlacklists = new Set<Evt.Listener.Blacklist<N>>();
+	handledCallbacks = new Set<Evt.Callback<N>>();
 
 	constructor(public name: N, public data: Evt.DataType<N>, public target: Evt.TargetType<N>, public source: Battler | null = null, public cause: Effect | null = null) {
 
 	}
 
-	hasName<Name extends Evt.Name>(name: Name): this is Evt<Name> {
+	hasName<T extends Evt.Name>(name: T): this is this | Evt<T> {
 		return this.name === name as any;
 	}
 }
@@ -23,7 +23,9 @@ namespace Evt {
 		Start: {};
 		Chance: { odds: [numerator: number, denominator: number], result?: boolean, forEvt: Evt<Name> };
 		Damage: { amount: number, isDirect?: boolean };
+		Faint: {};
 		Heal: { amount: number };
+		CheckCanUseMove: { canUseMove: boolean }
 		Move: { move: Move, ignoreAbility?: boolean };
 		/** Fires when an attacking move deals its standard damage. */
 		ApplyMoveDamage: { moveEvt: Evt<"Move"> };
@@ -34,6 +36,7 @@ namespace Evt {
 		Residual: {};
 		ApplyCondition: { condition: Condition };
 		RemoveCondition: { condition: Condition };
+		CheckConditionImmunity: { condition: Condition, isImmune: boolean };
 		GetImmunity: { isImmune: boolean, showImmunityText?: boolean };
 		GetTypeEffectiveness: { effectiveness: number };
 		GetMoveDamageMultiplier: { multiplier: number };
@@ -46,7 +49,9 @@ namespace Evt {
 		SwitchIn: Battler;
 		Start: Battler;
 		Damage: Battler;
+		Faint: Battler;
 		Heal: Battler;
+		CheckCanUseMove: Battler;
 		Move: Battler[];
 		ApplyMoveDamage: Battler;
 		Hit: Battler;
@@ -54,6 +59,7 @@ namespace Evt {
 		Residual: Battler;
 		ApplyCondition: Battler;
 		RemoveCondition: Battler;
+		CheckConditionImmunity: Battler;
 		GetImmunity: Battler;
 		GetTypeEffectiveness: Battler;
 		GetMoveDamageMultiplier: Battler;

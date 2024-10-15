@@ -159,6 +159,10 @@ class Battler {
 	hasStatusCondition() {
 		return [...this.conditions].some(c => c.isStatus);
 	}
+
+	hasType(type: Types.Type) {
+		return this.types.includes(type);
+	}
 }
 
 namespace Battler {

@@ -10,9 +10,13 @@ class Battle {
     evtAncestry = [];
     get currentEvent() { return this.evtAncestry[0] ?? null; }
     ;
+    get parentEvent() { return this.evtAncestry[1] ?? null; }
+    ;
     battlerIDGen = Util.createIDGen();
     generateBattlerID() { return `B-${this.battlerIDGen.next().value}`; }
     effectStates = {};
+    winner = null;
+    get ended() { return this.winner !== null; }
     /** Gets the state tied to each Battler-Effect pair
      */
     getEffectState(target, effect) {
@@ -86,13 +90,6 @@ class Battle {
         };
         console.log("\x1b[34m", ">", ...texts.map(text => smartText(text)), "\x1b[0m");
     }
-    getWinner() {
-        if (this.teams[0].hasLost())
-            return this.teams[1];
-        if (this.teams[1].hasLost())
-            return this.teams[0];
-        return null;
-    }
     async runEvt(...args) {
         if (args.length === 1) {
             return this.runEvtImpl(args[0]);
@@ -101,11 +98,18 @@ class Battle {
             return this.runEvtImpl(new Evt(...args));
     }
     async runEvtImpl(evt) {
+        if (this.ended)
+            return null;
         this.evtAncestry.unshift(evt);
-        while (this.getRemainingListenersForEvt(evt).length > 0) {
-            const listener = this.getRemainingListenersForEvt(evt)[0];
-            evt.handledCallbacks.push(listener.callback);
-            if (evt.listenerBlacklists.some(lb => lb.checker(listener) === true))
+        if (this.parentEvent)
+            for (const lb of this.parentEvent.listenerBlacklists)
+                evt.listenerBlacklists.add(lb);
+        let lastPriority = null;
+        while (this.getRemainingListenersForEvt(evt, lastPriority).length > 0) {
+            const listener = this.getRemainingListenersForEvt(evt, lastPriority)[0];
+            lastPriority = listener.priority;
+            evt.handledCallbacks.add(listener.callback);
+            if ([...evt.listenerBlacklists].some(lb => lb.checker(listener) === true))
                 continue;
             const result = await listener.callback.call(this, evt, listener);
             if (result === null) {
@@ -118,7 +122,7 @@ class Battle {
         this.evtAncestry.shift();
         return evt.data;
     }
-    getRemainingListenersForEvt(evt) {
+    getRemainingListenersForEvt(evt, lastPriority) {
         const listeners = [];
         if (Battler.isBattler(evt.target)) {
             listeners.push(...this.getListenersFromBattlerEffects(evt, evt.target, "Target", "self"));
@@ -178,7 +182,7 @@ class Battle {
             }
         }
         listeners.sort((a, b) => b.priority - a.priority);
-        return listeners.filter(listener => !evt.handledCallbacks.includes(listener.callback));
+        return listeners.filter(listener => !evt.handledCallbacks.has(listener.callback)).filter(listener => lastPriority === null || listener.priority <= lastPriority);
     }
     getListenersFromBattlerEffects(evt, battler, targetOrSource, relation) {
         const listeners = [];
@@ -219,6 +223,8 @@ class Battle {
         }
         this.turn++;
         console.log("---\n");
+        if (this.winner)
+            console.log(`Team ${this.winner.id} wins!`);
     }
     async chance(odds, forEvt) {
         return !!(await this.runEvt('Chance', { odds, forEvt }, forEvt.target, forEvt.source, forEvt.cause))?.result;

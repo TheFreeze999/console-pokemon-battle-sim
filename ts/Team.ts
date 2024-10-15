@@ -29,7 +29,7 @@ class Team {
 		return this.battle.teams.find(t => t !== this)!
 	}
 
-	hasLost() {
+	allFainted() {
 		return this.battlers.every(b => b.fainted);
 	}
 }

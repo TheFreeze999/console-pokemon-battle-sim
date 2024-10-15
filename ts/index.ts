@@ -34,8 +34,11 @@ gibble.setStats({
 gibble.types = [Types.Type.DRAGON, Types.Type.GROUND];
 abra.types = [Types.Type.PSYCHIC];
 
-gibble.abilitySlot.baseAbility = DexAbilities.immunity;
-abra.abilitySlot.baseAbility = DexAbilities.mold_breaker;
+gibble.abilitySlot.baseAbility = DexAbilities.shadow_shield;
+abra.abilitySlot.baseAbility = DexAbilities.insomnia;
+
+abra.itemSlot.item = DexItems.toxic_orb;
+
 
 battle.teams[0].addBattlers(abra);
 battle.teams[1].addBattlers(gibble);
@@ -44,8 +47,8 @@ await battle.start();
 
 await battle.startTurn();
 
-await battle.runEvt('Move', { move: DexMoves.ember }, [gibble], abra);
 await battle.runEvt('Move', { move: DexMoves.tackle }, [abra], gibble);
+await battle.runEvt('Move', { move: DexMoves.tackle }, [gibble], abra);
 
 await battle.endTurn();
 
@@ -53,9 +56,18 @@ await battle.endTurn();
 await battle.startTurn();
 
 await battle.runEvt('Move', { move: DexMoves.tackle }, [abra], gibble);
-await battle.runEvt('Move', { move: DexMoves.ember }, [gibble], abra);
+await battle.runEvt('Move', { move: DexMoves.rest }, [abra], abra);
 
 await battle.endTurn();
+
+
+await battle.startTurn();
+
+await battle.runEvt('Move', { move: DexMoves.tackle }, [abra], gibble);
+await battle.runEvt('Move', { move: DexMoves.tackle }, [gibble], abra);
+
+await battle.endTurn();
+
 
 
 

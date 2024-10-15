@@ -19,12 +19,14 @@ const DexAbilities = {
 	flash_fire: new Ability('flash_fire', 'Flash Fire', {
 		handler: {
 			onTargetGetImmunityPriority: 200,
-			async onTargetGetImmunity({ target, data, cause }) {
-				if (!(cause instanceof Move)) return;
-				if (cause.type !== Types.Type.FIRE) return;
+			async onTargetGetImmunity({ target, data, cause: move, source }) {
+				if (!(move instanceof Move)) return;
+				if (move.type !== Types.Type.FIRE) return;
 
-				await this.showText(`[${target.name}'s Flash Fire]`)
+				await this.showText(`[${target.name}'s Flash Fire]`);
 				data.isImmune = true;
+
+				await this.runEvt('ApplyCondition', { condition: DexConditions.flash_fire_boost }, target, source, move);
 			}
 		}
 	}),
@@ -66,12 +68,13 @@ const DexAbilities = {
 	}),
 	immunity: new Ability('immunity', 'Immunity', {
 		handler: {
-			onTargetApplyConditionPriority: 200,
-			async onTargetApplyCondition({ data, target }) {
-				if ([DexConditions.psn, DexConditions.tox].includes(data.condition)) {
+			onTargetCheckConditionImmunityPriority: 200,
+			async onTargetCheckConditionImmunity({ data, target, cause }) {
+				if (![DexConditions.psn, DexConditions.tox].includes(data.condition)) return;
+				data.isImmune = true;
+				if (cause instanceof Move) {
 					await this.showText(`[${target.name}'s Immunity]`);
 					await this.showText(`${target.name} cannot be poisoned.`);
-					return null;
 				}
 			},
 
@@ -85,6 +88,106 @@ const DexAbilities = {
 			onCauseRemoveConditionPriority: 101,
 			async onCauseRemoveCondition({ target }) {
 				await this.showText(`[${target.name}'s Immunity]`)
+			}
+		}
+	}),
+	limber: new Ability('limber', 'Limber', {
+		handler: {
+			onTargetCheckConditionImmunityPriority: 200,
+			async onTargetCheckConditionImmunity({ data, target, cause }) {
+				if (data.condition !== DexConditions.prz) return;
+
+				data.isImmune = true;
+				if (cause instanceof Move) {
+					await this.showText(`[${target.name}'s Limber]`);
+					await this.showText(`${target.name} cannot be paralyzed.`);
+				}
+			},
+
+			onTargetResidualPriority: 500,
+			async onTargetResidual({ target }) {
+				await this.runEvt('RemoveCondition', { condition: DexConditions.prz }, target, target, DexAbilities.limber)
+			},
+
+			onCauseRemoveConditionPriority: 101,
+			async onCauseRemoveCondition({ target }) {
+				await this.showText(`[${target.name}'s Limber]`)
+			}
+		}
+	}),
+	insomnia: new Ability('insomnia', 'Insomnia', {
+		handler: {
+			onTargetCheckConditionImmunityPriority: 200,
+			async onTargetCheckConditionImmunity({ data, target, cause }) {
+				if (data.condition !== DexConditions.slp) return;
+
+				data.isImmune = true;
+				if (cause instanceof Move) {
+					await this.showText(`[${target.name}'s Insomnia]`);
+					await this.showText(`${target.name} cannot fall asleep.`);
+				}
+			},
+
+			onTargetResidualPriority: 500,
+			async onTargetResidual({ target }) {
+				await this.runEvt('RemoveCondition', { condition: DexConditions.slp }, target, target, DexAbilities.insomnia)
+			},
+
+			onCauseRemoveConditionPriority: 101,
+			async onCauseRemoveCondition({ target }) {
+				await this.showText(`[${target.name}'s Insomnia]`)
+			}
+		}
+	}),
+	corrosion: new Ability('corrosion', 'Corrosion', {
+		// Effect implemented in ./DexConditions.ts#psn & #tox
+	}),
+	multiscale: new Ability('multiscale', 'Multiscale', {
+		handler: {
+			async onTargetGetMoveDamageMultiplier({ target, data }) {
+				if (target.currentHP < target.stats.hp) return;
+				data.multiplier *= 0.5;
+			}
+		}
+	}),
+	shadow_shield: new Ability('shadow_shield', 'Shadow Shield', {
+		ignorable: false,
+		handler: {
+			async onTargetGetMoveDamageMultiplier({ target, data }) {
+				if (target.currentHP < target.stats.hp) return;
+				data.multiplier *= 0.5;
+			}
+		}
+	}),
+	guts: new Ability('guts', 'Guts', {
+		handler: {
+			async onSourceGetMoveDamageMultiplier({ data, cause, source }) {
+				if (!(cause instanceof Move)) return;
+				if (cause.category !== Move.Category.PHYSICAL || !cause.isStandardDamagingAttack()) return;
+				if (source?.hasStatusCondition() !== true) return;
+
+				data.multiplier *= 1.5;
+				// Burn attack drop negation implemented in ./DexConditions.ts#brn
+			}
+		}
+	}),
+
+	poison_heal: new Ability('poison_heal', 'Poison Heal', {
+		handler: {
+			onTargetDamagePriority: 200,
+			async onTargetDamage({ cause }) {
+				if ([DexConditions.psn, DexConditions.tox].includes(cause as any)) return null;
+			},
+
+			onTargetResidualPriority: 130,
+			async onTargetResidual({ target }) {
+				if (![DexConditions.psn, DexConditions.tox].some(c => target.conditions.has(c))) return;
+				await this.runEvt('Heal', { amount: target.stats.hp / 8 }, target, target, DexAbilities.poison_heal);
+			},
+
+			onCauseHealPriority: 101,
+			async onCauseHeal({ target }) {
+				await this.showText(`[${target.name}'s Poison Heal]`)
 			}
 		}
 	})

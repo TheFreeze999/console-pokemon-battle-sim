@@ -2,6 +2,7 @@ import Ability from "./Ability.js";
 import DexAbilities from "./DexAbilities.js";
 import DexConditions from "./DexConditions.js";
 import DexItems from "./DexItems.js";
+import DexMoves from "./DexMoves.js";
 import Effect from "./Effect.js";
 import Evt from "./Evt.js";
 import Move from "./Move.js";
@@ -9,7 +10,7 @@ import Types from "./Types.js";
 import Util from "./util.js";
 
 const EFFECT_GLOBAL_HANDLERS: Evt.Handler[] = [];
-for (const effect of ([DexAbilities, DexItems, DexConditions].flatMap(dex => Object.values(dex))) as Effect[]) {
+for (const effect of ([DexAbilities, DexItems, DexConditions, DexMoves].flatMap(dex => Object.values(dex))) as Effect[]) {
 	const handler: Evt.Handler = { ...effect.handler };
 	for (const key in effect.handler) {
 		if (!key.startsWith('onAny')) delete handler[key as keyof Evt.Handler];
@@ -18,9 +19,19 @@ for (const effect of ([DexAbilities, DexItems, DexConditions].flatMap(dex => Obj
 }
 
 const PRE_EXECUTION: Evt.Handler = {
+	onAnyMovePriority: 110,
+	async onAnyMove({ target, data, source }) {
+		if (!source) return;
+		const canUseMove = (await this.runEvt('CheckCanUseMove', { canUseMove: true }, source))?.canUseMove ?? true;
+
+		if (!canUseMove) return null;
+	},
+
 	onAnyApplyConditionPriority: 110,
-	async onAnyApplyCondition({ target, data }) {
-		if (data.condition.isStatus && target.hasStatusCondition()) return null;
+	async onAnyApplyCondition({ target, data, source, cause }) {
+		if (data.condition.isStatus && target.hasStatusCondition() && cause !== DexMoves.rest) return null;
+		const immunityEvtResult = await this.runEvt('CheckConditionImmunity', { condition: data.condition, isImmune: false }, target, source, cause);
+		if (immunityEvtResult?.isImmune === true) return null;
 	},
 
 	onAnyRemoveConditionPriority: 110,
@@ -53,6 +64,13 @@ const EXECUTION: Evt.Handler = {
 		await this.showText(`${target.name} now has ${target.currentHP} HP!`);
 	},
 
+	onAnyFaintPriority: 100,
+	async onAnyFaint({ target }) {
+		await this.showText(`${target.name} fainted!`);
+
+		if (target.team.allFainted()) this.winner ??= target.team.getOpposingTeam();
+	},
+
 	onAnyHealPriority: 100,
 	async onAnyHeal({ target, data }) {
 		data.amount = target.heal(data.amount);
@@ -83,7 +101,7 @@ const EXECUTION: Evt.Handler = {
 				continue;
 			}
 			const getImmunityEvt = new Evt('GetImmunity', { isImmune: false }, targetBattler, source, move);
-			if (data.ignoreAbility) getImmunityEvt.listenerBlacklists.push(ignoreAbilityBlacklist);
+			if (data.ignoreAbility) getImmunityEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
 			const getImmunityEvtResult = await this.runEvt(getImmunityEvt)
 			const isImmune = getImmunityEvtResult?.isImmune ?? false;
 			const showImmunityText = getImmunityEvtResult?.showImmunityText ?? true;
@@ -94,12 +112,12 @@ const EXECUTION: Evt.Handler = {
 			} else {
 				if (move.isStandardDamagingAttack()) {
 					const applyMoveDamageEvt = new Evt('ApplyMoveDamage', { moveEvt: evt }, targetBattler, source, move);
-					if (data.ignoreAbility) applyMoveDamageEvt.listenerBlacklists.push(ignoreAbilityBlacklist);
+					if (data.ignoreAbility) applyMoveDamageEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
 					await this.runEvt(applyMoveDamageEvt);
 				}
 
 				const hitEvt = new Evt('Hit', { moveEvt: evt }, targetBattler, source, move);
-				if (data.ignoreAbility) hitEvt.listenerBlacklists.push(ignoreAbilityBlacklist);
+				if (data.ignoreAbility) hitEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
 				await this.runEvt(hitEvt);
 			}
 
@@ -164,7 +182,10 @@ const EXECUTION: Evt.Handler = {
 }
 
 const POST_EXECUTION: Evt.Handler = {
-
+	onAnyDamagePriority: 90,
+	async onAnyDamage({ target, source, cause }) {
+		if (target.fainted) await this.runEvt('Faint', {}, target, source, cause);
+	}
 }
 
 const GLOBAL_EVENT_HANDLERS = [PRE_EXECUTION, EXECUTION, POST_EXECUTION, ...EFFECT_GLOBAL_HANDLERS];

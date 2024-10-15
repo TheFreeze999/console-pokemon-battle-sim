@@ -2,12 +2,13 @@ import Ability from "./Ability.js";
 import DexAbilities from "./DexAbilities.js";
 import DexConditions from "./DexConditions.js";
 import DexItems from "./DexItems.js";
+import DexMoves from "./DexMoves.js";
 import Evt from "./Evt.js";
 import Move from "./Move.js";
 import Types from "./Types.js";
 import Util from "./util.js";
 const EFFECT_GLOBAL_HANDLERS = [];
-for (const effect of ([DexAbilities, DexItems, DexConditions].flatMap(dex => Object.values(dex)))) {
+for (const effect of ([DexAbilities, DexItems, DexConditions, DexMoves].flatMap(dex => Object.values(dex)))) {
     const handler = { ...effect.handler };
     for (const key in effect.handler) {
         if (!key.startsWith('onAny'))
@@ -16,9 +17,20 @@ for (const effect of ([DexAbilities, DexItems, DexConditions].flatMap(dex => Obj
     EFFECT_GLOBAL_HANDLERS.push(handler);
 }
 const PRE_EXECUTION = {
+    onAnyMovePriority: 110,
+    async onAnyMove({ target, data, source }) {
+        if (!source)
+            return;
+        const canUseMove = (await this.runEvt('CheckCanUseMove', { canUseMove: true }, source))?.canUseMove ?? true;
+        if (!canUseMove)
+            return null;
+    },
     onAnyApplyConditionPriority: 110,
-    async onAnyApplyCondition({ target, data }) {
-        if (data.condition.isStatus && target.hasStatusCondition())
+    async onAnyApplyCondition({ target, data, source, cause }) {
+        if (data.condition.isStatus && target.hasStatusCondition() && cause !== DexMoves.rest)
+            return null;
+        const immunityEvtResult = await this.runEvt('CheckConditionImmunity', { condition: data.condition, isImmune: false }, target, source, cause);
+        if (immunityEvtResult?.isImmune === true)
             return null;
     },
     onAnyRemoveConditionPriority: 110,
@@ -47,6 +59,12 @@ const EXECUTION = {
             return null;
         await this.showText(`${target.name} was hit with ${data.amount} damage.`);
         await this.showText(`${target.name} now has ${target.currentHP} HP!`);
+    },
+    onAnyFaintPriority: 100,
+    async onAnyFaint({ target }) {
+        await this.showText(`${target.name} fainted!`);
+        if (target.team.allFainted())
+            this.winner ??= target.team.getOpposingTeam();
     },
     onAnyHealPriority: 100,
     async onAnyHeal({ target, data }) {
@@ -77,7 +95,7 @@ const EXECUTION = {
             }
             const getImmunityEvt = new Evt('GetImmunity', { isImmune: false }, targetBattler, source, move);
             if (data.ignoreAbility)
-                getImmunityEvt.listenerBlacklists.push(ignoreAbilityBlacklist);
+                getImmunityEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
             const getImmunityEvtResult = await this.runEvt(getImmunityEvt);
             const isImmune = getImmunityEvtResult?.isImmune ?? false;
             const showImmunityText = getImmunityEvtResult?.showImmunityText ?? true;
@@ -89,12 +107,12 @@ const EXECUTION = {
                 if (move.isStandardDamagingAttack()) {
                     const applyMoveDamageEvt = new Evt('ApplyMoveDamage', { moveEvt: evt }, targetBattler, source, move);
                     if (data.ignoreAbility)
-                        applyMoveDamageEvt.listenerBlacklists.push(ignoreAbilityBlacklist);
+                        applyMoveDamageEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
                     await this.runEvt(applyMoveDamageEvt);
                 }
                 const hitEvt = new Evt('Hit', { moveEvt: evt }, targetBattler, source, move);
                 if (data.ignoreAbility)
-                    hitEvt.listenerBlacklists.push(ignoreAbilityBlacklist);
+                    hitEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
                 await this.runEvt(hitEvt);
             }
             await this.runEvt('ApplyMoveSecondary', { moveEvt: evt }, targetBattler, source, move);
@@ -149,6 +167,12 @@ const EXECUTION = {
         data.effectiveness = Types.calcEffectiveness([move.type], target.types);
     }
 };
-const POST_EXECUTION = {};
+const POST_EXECUTION = {
+    onAnyDamagePriority: 90,
+    async onAnyDamage({ target, source, cause }) {
+        if (target.fainted)
+            await this.runEvt('Faint', {}, target, source, cause);
+    }
+};
 const GLOBAL_EVENT_HANDLERS = [PRE_EXECUTION, EXECUTION, POST_EXECUTION, ...EFFECT_GLOBAL_HANDLERS];
 export default GLOBAL_EVENT_HANDLERS;
