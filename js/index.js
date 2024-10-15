@@ -2,7 +2,6 @@ import Battle from "./Battle.js";
 import Battler from "./Battler.js";
 import DexAbilities from './DexAbilities.js';
 import DexMoves from "./DexMoves.js";
-import Evt from "./Evt.js";
 import Types from "./Types.js";
 const battle = new Battle();
 const abra = new Battler('Abra');
@@ -25,11 +24,14 @@ gibble.setStats({
 });
 gibble.types = [Types.Type.DRAGON, Types.Type.GHOST];
 abra.types = [Types.Type.PSYCHIC];
+gibble.abilitySlot.baseAbility = DexAbilities.flash_fire;
 abra.abilitySlot.baseAbility = DexAbilities.magic_guard;
 battle.teams[0].addBattlers(abra);
 battle.teams[1].addBattlers(gibble);
-battle.start();
-await battle.runEvt(new Evt('Damage', { amount: 2 }, abra, gibble, DexMoves.tackle));
+await battle.start();
+await battle.runEvt('Move', { move: DexMoves.ember }, [abra], gibble);
+await battle.runEvt('Move', { move: DexMoves.ember }, [gibble], abra);
+await battle.endTurn();
 /* while (battle.getWinner() === null) {
     console.log(`=== Turn ${battle.turn} ===`);
 

@@ -1,10 +1,11 @@
 import Battle from "./Battle.js";
 import Battler from "./Battler.js";
+import Condition from "./Condition.js";
 import Effect from "./Effect.js";
 import Move from "./Move.js";
 
 class Evt<N extends Evt.Name> {
-	listenerBlacklists: { key: keyof any, checker(listener: Evt.Listener<N>): boolean }[] = [];
+	listenerBlacklists: Evt.Listener.Blacklist<N>[] = [];
 	handledCallbacks: Evt.Callback<N>[] = []
 
 	constructor(public name: N, public data: Evt.DataType<N>, public target: Evt.TargetType<N>, public source: Battler | null = null, public cause: Effect | null = null) {
@@ -18,23 +19,41 @@ class Evt<N extends Evt.Name> {
 
 namespace Evt {
 	type DataTypes = {
+		SwitchIn: {};
+		Start: {};
 		Damage: { amount: number, isDirect?: boolean };
-		Move: { move: Move };
+		Heal: { amount: number };
+		Move: { move: Move, ignoreAbility?: boolean };
+		ApplyMoveDamage: { moveEvt: Evt<"Move"> };
+		Hit: { moveEvt: Evt<"Move"> };
+		ApplyMoveSecondary: { moveEvt: Evt<"Move"> };
+		Residual: {};
+		ApplyCondition: { condition: Condition };
+		GetImmunity: { isImmune: boolean };
 	}
 	export type Name = keyof DataTypes;
 
 	export type DataType<N extends Name = Name> = DataTypes[N];
 
 	type TargetTypes = {
+		SwitchIn: Battler;
+		Start: Battler;
 		Damage: Battler;
+		Heal: Battler;
 		Move: Battler[];
+		ApplyMoveDamage: Battler;
+		Hit: Battler;
+		ApplyMoveSecondary: Battler;
+		Residual: Battler;
+		ApplyCondition: Battler;
+		GetImmunity: Battler;
 	};
 	type DefaultTargetType = Battler[] | Battler | Battle;
 	export type TargetType<N extends Name = Name> = N extends keyof TargetTypes ? TargetTypes[N] : DefaultTargetType;
 
 	export type ExtractName<E extends Evt<Name>> = E extends Evt<infer N> ? N : never;
 
-	export type CallbackName<N extends Evt.Name> = `on${N}` | `onCause${N}` | `on${'Target' | 'Source'}${'' | 'Ally' | 'Foe'}${N}`
+	export type CallbackName<N extends Evt.Name> = `onAny${N}` | `onCause${N}` | `on${'Target' | 'Source'}${'' | 'Ally' | 'Foe'}${N}`
 	export type Callback<N extends Evt.Name> = (this: Battle, evt: Evt<N>, listener: Listener<N>) => Promise<Evt.DataType<N> | null | void>
 
 	export type Listener<N extends Evt.Name> = {
@@ -56,7 +75,7 @@ namespace Evt {
 namespace Evt.Listener {
 	export function getCallbackName<N extends Evt.Name>(listener: Evt.Listener<N>): Evt.CallbackName<N> {
 		if (listener.origin === 'global') {
-			return `on${listener.evt.name}`
+			return `onAny${listener.evt.name}`
 		} else if ('cause' in listener.origin) {
 			return `onCause${listener.evt.name}`
 		} else {
@@ -71,6 +90,12 @@ namespace Evt.Listener {
 			return str as Evt.CallbackName<N>;
 		}
 	}
+
+	export type Blacklist<N extends Evt.Name> = {
+		key: keyof any,
+		/** If checker returns true, the listener gets blacklisted */
+		checker(listener: Evt.Listener<N>): boolean
+	};
 }
 
 

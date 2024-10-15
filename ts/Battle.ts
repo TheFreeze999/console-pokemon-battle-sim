@@ -57,11 +57,15 @@ class Battle {
 		}
 	}
 
-	start() {
+	async start() {
 		for (const team of this.teams) {
 			for (const [i, battler] of team.battlers.entries()) {
 				battler.active = i === 0;
 			}
+		}
+
+		for (const active of this.getAllActive()) {
+			await this.runEvt('SwitchIn', {}, active);
 		}
 	}
 
@@ -82,14 +86,32 @@ class Battle {
 		}
 	}
 
+	debug(...texts: any[]) {
+		const smartText = (t: any): any => {
+			if (typeof t !== 'object') return t;
+			if (t === null) return t;
+			for (const key of ["displayName", "name", "id"]) {
+				if (t[key] !== undefined && t[key] !== null && typeof t[key] !== "object") return t[key];
+			}
+			if (Array.isArray(t)) return t.map((el) => smartText(el));
+			return t;
+		}
+		console.log("\x1b[34m", ">", ...texts.map(text => smartText(text)), "\x1b[0m");
+	}
+
 	getWinner() {
 		if (this.teams[0].hasLost()) return this.teams[1];
 		if (this.teams[1].hasLost()) return this.teams[0];
 		return null;
 	}
 
+	async runEvt<N extends Evt.Name>(...args: ConstructorParameters<typeof Evt<N>> | [evt: Evt<N>]) {
+		if (args.length === 1) {
+			return this.runEvtImpl(args[0]);
+		} else return this.runEvtImpl(new Evt<N>(...args));
+	}
 
-	async runEvt<N extends Evt.Name>(evt: Evt<N>) {
+	private async runEvtImpl<N extends Evt.Name>(evt: Evt<N>) {
 		while (this.getRemainingListenersForEvt(evt).length > 0) {
 			const listener = this.getRemainingListenersForEvt(evt)[0]!
 
@@ -121,6 +143,21 @@ class Battle {
 			}
 		}
 
+		if (Array.isArray(evt.target)) {
+			for (const targetBattler of evt.target) {
+				if (!Battler.isBattler(targetBattler)) continue;
+				listeners.push(...this.getListenersFromBattlerEffects(evt, targetBattler, "Target", "self"));
+
+				for (const ally of targetBattler.getActiveAlliesAndSelf()) {
+					listeners.push(...this.getListenersFromBattlerEffects(evt, ally, "Target", "ally"));
+				}
+				for (const foe of targetBattler.getActiveFoes()) {
+					listeners.push(...this.getListenersFromBattlerEffects(evt, foe, "Target", "foe"));
+				}
+			}
+
+		}
+
 		if (Battler.isBattler(evt.source)) {
 			listeners.push(...this.getListenersFromBattlerEffects(evt, evt.source, "Source", "self"));
 
@@ -147,7 +184,7 @@ class Battle {
 		}
 
 		for (const handler of GLOBAL_EVENT_HANDLERS) {
-			const callbackName: Evt.CallbackName<N> = `on${evt.name}`;
+			const callbackName: Evt.CallbackName<N> = `onAny${evt.name}`;
 			const callback = handler[callbackName];
 			if (callback) {
 				const listener: Evt.Listener<N> = {
@@ -198,7 +235,7 @@ class Battle {
 	async endTurn() {
 		console.log("---")
 		for (const battler of this.getAllActive()) {
-			// await this.runEvent('Residual', {}, battler);
+			await this.runEvt(new Evt('Residual', {}, battler));
 		}
 		this.turn++;
 	}

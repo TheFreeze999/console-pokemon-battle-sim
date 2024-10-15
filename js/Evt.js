@@ -22,7 +22,7 @@ class Evt {
     (function (Listener) {
         function getCallbackName(listener) {
             if (listener.origin === 'global') {
-                return `on${listener.evt.name}`;
+                return `onAny${listener.evt.name}`;
             }
             else if ('cause' in listener.origin) {
                 return `onCause${listener.evt.name}`;
