@@ -39,6 +39,15 @@ const DexAbilities = {
                 data.ignoreAbility = true;
             }
         }
+    }),
+    serence_grace: new Ability('serene_grace', 'Serene Grace', {
+        handler: {
+            onSourceChancePriority: 200,
+            async onSourceChance({ data, cause }) {
+                if (cause instanceof Move)
+                    data.odds[0] *= 2;
+            }
+        }
     })
 };
 export default DexAbilities;

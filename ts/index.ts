@@ -35,7 +35,7 @@ gibble.types = [Types.Type.DRAGON, Types.Type.GHOST];
 abra.types = [Types.Type.PSYCHIC];
 
 gibble.abilitySlot.baseAbility = DexAbilities.flash_fire;
-abra.abilitySlot.baseAbility = DexAbilities.magic_guard;
+abra.abilitySlot.baseAbility = DexAbilities.serence_grace;
 
 battle.teams[0].addBattlers(abra);
 battle.teams[1].addBattlers(gibble);

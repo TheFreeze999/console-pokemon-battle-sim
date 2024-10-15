@@ -15,8 +15,9 @@ const DexMoves = {
 		type: Types.Type.FIRE,
 		basePower: 40,
 		handler: {
-			async onCauseHit({ target, source }) {
-				await this.runEvt('ApplyCondition', { condition: DexConditions.burn }, target, source, DexMoves.ember);
+			async onCauseHit(evt) {
+				if (await this.chance([10, 100], evt))
+					await this.runEvt('ApplyCondition', { condition: DexConditions.burn }, evt.target, evt.source, DexMoves.ember);
 			}
 		}
 	}),

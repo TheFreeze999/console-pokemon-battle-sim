@@ -5,6 +5,7 @@ import DexItems from "./DexItems.js";
 import Evt from "./Evt.js";
 import Move from "./Move.js";
 import Types from "./Types.js";
+import Util from "./util.js";
 const EFFECT_GLOBAL_HANDLERS = [];
 for (const effect of ([DexAbilities, DexItems, DexConditions].flatMap(dex => Object.values(dex)))) {
     const handler = { ...effect.handler };
@@ -25,6 +26,11 @@ const EXECUTION = {
         const amountDealt = target.dealDamage(data.amount);
         await this.showText(`${target.name} was hit with ${amountDealt} damage.`);
         await this.showText(`${target.name} now has ${target.currentHP} HP!`);
+    },
+    onAnyChancePriority: 100,
+    async onAnyChance({ data }) {
+        const [numerator, denominator] = data.odds;
+        data.result = Util.Random.int(1, denominator) <= numerator;
     },
     onAnyHealPriority: 100,
     async onAnyHeal({ target, data }) {

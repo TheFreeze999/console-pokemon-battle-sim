@@ -203,5 +203,8 @@ class Battle {
         }
         this.turn++;
     }
+    async chance(odds, forEvt) {
+        return !!(await this.runEvt('Chance', { odds, forEvt }, forEvt.target, forEvt.source, forEvt.cause))?.result;
+    }
 }
 export default Battle;

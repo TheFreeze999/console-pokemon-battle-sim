@@ -21,6 +21,7 @@ namespace Evt {
 	type DataTypes = {
 		SwitchIn: {};
 		Start: {};
+		Chance: { odds: [numerator: number, denominator: number], result?: boolean, forEvt: Evt<Name> };
 		Damage: { amount: number, isDirect?: boolean };
 		Heal: { amount: number };
 		Move: { move: Move, ignoreAbility?: boolean };

@@ -239,6 +239,10 @@ class Battle {
 		}
 		this.turn++;
 	}
+
+	async chance(odds: [numerator: number, denominator: number], forEvt: Evt<any>) {
+		return !!(await this.runEvt('Chance', { odds, forEvt }, forEvt.target, forEvt.source, forEvt.cause))?.result
+	}
 }
 
 namespace Battle {
