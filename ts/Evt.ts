@@ -2,6 +2,7 @@ import Battle from "./Battle.js";
 import Battler from "./Battler.js";
 import Condition from "./Condition.js";
 import Effect from "./Effect.js";
+import Item from "./Item.js";
 import Move from "./Move.js";
 
 class Evt<N extends Evt.Name> {
@@ -40,6 +41,7 @@ namespace Evt {
 		GetImmunity: { isImmune: boolean, showImmunityText?: boolean };
 		GetTypeEffectiveness: { effectiveness: number };
 		GetMoveDamageMultiplier: { multiplier: number };
+		RemoveItem: { method: 'consume' | 'take', itemRemoved?: Item }
 	}
 	export type Name = keyof DataTypes;
 
@@ -63,6 +65,7 @@ namespace Evt {
 		GetImmunity: Battler;
 		GetTypeEffectiveness: Battler;
 		GetMoveDamageMultiplier: Battler;
+		RemoveItem: Battler;
 	};
 	type DefaultTargetType = Battler[] | Battler | Battle;
 	export type TargetType<N extends Name = Name> = N extends keyof TargetTypes ? TargetTypes[N] : DefaultTargetType;

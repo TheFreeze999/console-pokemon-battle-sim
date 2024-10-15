@@ -1,4 +1,5 @@
 import Stats from "./Stats.js";
+import Move from "./Move.js";
 import DexAbilities from "./DexAbilities.js";
 import Types from "./Types.js";
 import Util from "./util.js";
@@ -132,6 +133,15 @@ class Battler {
     }
     hasType(type) {
         return this.types.includes(type);
+    }
+    async useMove(move, target) {
+        if (move.targeting === Move.Targeting.SELF)
+            target ??= [this];
+        else if (move.targeting === Move.Targeting.ONE_OTHER)
+            target ??= [Util.Random.arrayEl(this.getActiveFoes())];
+        else
+            target ??= [];
+        await this.battle.runEvt('Move', { move }, target, this);
     }
 }
 export default Battler;

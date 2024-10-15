@@ -23,11 +23,28 @@ const DexMoves = {
         basePower: 60,
     }),
     dragon_rage: new Move('dragon_rage', 'Dragon Rage', {
+        type: Types.Type.DRAGON,
         category: Move.Category.SPECIAL,
         handlers: [{
                 onCauseHitPriority: 101,
                 async onCauseHit({ data, target, source, cause }) {
                     await this.runEvt('Damage', { amount: 60, isDirect: true }, target, source, cause);
+                }
+            }]
+    }),
+    sheer_cold: new Move('sheer_cold', 'Sheer Cold', {
+        type: Types.Type.ICE,
+        category: Move.Category.SPECIAL,
+        ohko: true,
+        handlers: [{
+                onCauseHitPriority: 101,
+                async onCauseHit({ data, target, source, cause }) {
+                    await this.runEvt('Damage', { amount: target.currentHP, isDirect: true }, target, source, cause);
+                },
+                onCauseGetImmunityPriority: 150,
+                async onCauseGetImmunity({ data, target, source, cause }) {
+                    if (target.hasType(Types.Type.ICE))
+                        data.isImmune = true;
                 }
             }]
     }),

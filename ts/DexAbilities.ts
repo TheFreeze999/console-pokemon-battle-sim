@@ -2,6 +2,7 @@ import Ability from "./Ability.js";
 import DexConditions from "./DexConditions.js";
 import Move from "./Move.js";
 import Types from "./Types.js";
+import Util from "./util.js";
 
 const DexAbilities = {
 	no_ability: new Ability('no_ability', 'No Ability'),
@@ -188,6 +189,26 @@ const DexAbilities = {
 			onCauseHealPriority: 101,
 			async onCauseHeal({ target }) {
 				await this.showText(`[${target.name}'s Poison Heal]`)
+			}
+		}]
+	}),
+	sturdy: new Ability('sturdy', 'Sturdy', {
+		handlers: [{
+			onTargetGetImmunityPriority: 150,
+			async onTargetGetImmunity({ data, target, cause: move }) {
+				if (!(move instanceof Move)) return;
+				if (move.ohko) data.isImmune = true;
+			},
+
+			onTargetDamagePriority: 101,
+			async onTargetDamage({ data, target }) {
+				data.isDirect ??= false;
+				if (!data.isDirect) return;
+				if (target.currentHP < target.stats.hp) return;
+
+				await this.showText(`[${target.name}'s Sturdy]`);
+				await this.showText(`${target.name} survived the hit.`);
+				data.amount = Util.clamper(0, target.stats.hp - 1)(data.amount);
 			}
 		}]
 	})

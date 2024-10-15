@@ -9,6 +9,7 @@ class Move {
     type = Types.Type["???"];
     contact = false;
     bypassTypeImmunity = false;
+    ohko = false;
     PP = 10;
     id;
     handlers = [];

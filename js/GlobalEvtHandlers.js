@@ -26,6 +26,8 @@ const PRE_EXECUTION = {
         const canUseMove = (await this.runEvt('CheckCanUseMove', { canUseMove: true }, source))?.canUseMove ?? true;
         if (!canUseMove)
             return null;
+        if (!data.move.verifyCorrectTargetSelection(source, target))
+            return null;
     },
     onAnyApplyConditionPriority: 110,
     async onAnyApplyCondition({ target, data, source, cause }) {
@@ -59,8 +61,8 @@ const EXECUTION = {
         data.amount = target.dealDamage(data.amount);
         if (data.amount <= 0)
             return null;
-        await this.showText(`${target.name} was hit with ${data.amount} damage.`);
-        await this.showText(`${target.name} now has ${target.currentHP} HP!`);
+        await this.showText(`${target.name} took ${data.amount} damage.`);
+        await this.showText(`${target.name} has ${target.currentHP} HP remaining!`);
     },
     onAnyFaintPriority: 100,
     async onAnyFaint({ target }) {
@@ -121,7 +123,7 @@ const EXECUTION = {
         }
     },
     onAnyApplyMoveDamagePriority: 100,
-    async onAnyApplyMoveDamage({ target, data, source, listenerBlacklists }) {
+    async onAnyApplyMoveDamage({ target, data, source }) {
         if (!source)
             return;
         const move = data.moveEvt.data.move;
@@ -167,6 +169,11 @@ const EXECUTION = {
         if (!(move instanceof Move))
             return;
         data.effectiveness = Types.calcEffectiveness([move.type], target.types);
+    },
+    onAnyRemoveItemPriority: 100,
+    async onAnyRemoveItem({ target, data }) {
+        data.itemRemoved ??= target.itemSlot.item ?? undefined;
+        target.itemSlot.item = null;
     }
 };
 const POST_EXECUTION = {
@@ -176,5 +183,17 @@ const POST_EXECUTION = {
             await this.runEvt('Faint', {}, target, source, cause);
     }
 };
-const GLOBAL_EVENT_HANDLERS = [PRE_EXECUTION, EXECUTION, POST_EXECUTION, ...EFFECT_GLOBAL_HANDLERS];
+const MISC = [{
+        // Item Consumption Text
+        onAnyRemoveItemPriority: 99,
+        async onAnyRemoveItem({ target, data }) {
+            if (data.method !== "consume" || !data.itemRemoved)
+                return;
+            if (data.itemRemoved.isBerry === true)
+                await this.showText(`${target.name} ate its ${data.itemRemoved.displayName}.`);
+            else
+                await this.showText(`${target.name}'s ${data.itemRemoved.displayName} was used up!`);
+        }
+    }];
+const GLOBAL_EVENT_HANDLERS = [PRE_EXECUTION, EXECUTION, POST_EXECUTION, ...MISC, ...EFFECT_GLOBAL_HANDLERS];
 export default GLOBAL_EVENT_HANDLERS;

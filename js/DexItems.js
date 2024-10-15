@@ -25,5 +25,27 @@ const DexItems = {
                 }
             }]
     }),
+    lum_berry: new Item('lum_berry', 'Lum Berry', {
+        isBerry: true,
+        handlers: [{
+                onTargetApplyConditionPriority: 80,
+                async onTargetApplyCondition({ data, target }) {
+                    if (!data.condition.isStatus)
+                        return;
+                    await this.runEvt('RemoveItem', { method: 'consume' }, target, target);
+                },
+                onAnyRemoveItemPriority: 85,
+                async onAnyRemoveItem({ data, target }) {
+                    if (data.itemRemoved !== DexItems.lum_berry)
+                        return;
+                    if (data.method !== 'consume')
+                        return;
+                    const condition = [...target.conditions].find(c => c.isStatus);
+                    if (!condition)
+                        return;
+                    await this.runEvt('RemoveCondition', { condition }, target, target, DexItems.lum_berry);
+                }
+            }]
+    })
 };
 export default DexItems;

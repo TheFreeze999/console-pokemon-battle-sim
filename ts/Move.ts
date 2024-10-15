@@ -14,6 +14,7 @@ class Move implements Effect, Move.Data {
 	type = Types.Type["???"];
 	contact = false;
 	bypassTypeImmunity = false;
+	ohko = false;
 	PP = 10;
 	id: Effect.ID;
 
@@ -65,7 +66,7 @@ namespace Move {
 		STATUS = 'STATUS',
 	}
 
-	export type Data = Pick<Move, "category" | "targeting" | "basePower" | "type" | "contact" | "PP" | "handlers" | "bypassTypeImmunity">
+	export type Data = Pick<Move, "ohko" | "category" | "targeting" | "basePower" | "type" | "contact" | "PP" | "handlers" | "bypassTypeImmunity">
 }
 
 

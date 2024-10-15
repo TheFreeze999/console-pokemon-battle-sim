@@ -2,6 +2,7 @@ import Condition from "./Condition.js";
 import DexAbilities from "./DexAbilities.js";
 import Move from "./Move.js";
 import Types from "./Types.js";
+import Util from "./util.js";
 const DexConditions = {
     brn: new Condition('brn', 'Burn', {
         isStatus: true,
@@ -157,12 +158,20 @@ const DexConditions = {
                     if (data.condition !== DexConditions.slp)
                         return;
                     await this.showText(`${target.name} fell asleep.`);
+                    const state = this.getEffectState(target, DexConditions.slp);
+                    state.counter = Util.Random.int(1, 3);
                 },
                 onTargetCheckCanUseMovePriority: 150,
                 async onTargetCheckCanUseMove(evt) {
                     const user = evt.target;
                     await this.showText(`${user.name} is fast asleep.`);
-                    evt.data.canUseMove = false;
+                    const state = this.getEffectState(user, DexConditions.slp);
+                    if (state.counter <= 0) {
+                        await this.runEvt('RemoveCondition', { condition: DexConditions.slp }, user);
+                    }
+                    else {
+                        evt.data.canUseMove = false;
+                    }
                 },
                 onAnyRemoveConditionPriority: 99,
                 async onAnyRemoveCondition({ target, data }) {
@@ -170,6 +179,10 @@ const DexConditions = {
                         return;
                     await this.showText(`${target.name} woke up.`);
                 },
+                async onTargetResidual({ target }) {
+                    const state = this.getEffectState(target, DexConditions.slp);
+                    state.counter--;
+                }
             }]
     }),
     flash_fire_boost: new Condition('flash_fire_boost', 'Flash Fire Boost', {
