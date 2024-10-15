@@ -7,6 +7,9 @@ class Battle {
     id = 'Battle-0';
     teams;
     turn = 1;
+    evtAncestry = [];
+    get currentEvent() { return this.evtAncestry[0] ?? null; }
+    ;
     battlerIDGen = Util.createIDGen();
     generateBattlerID() { return `B-${this.battlerIDGen.next().value}`; }
     effectStates = {};
@@ -39,20 +42,26 @@ class Battle {
         }
     }
     async start() {
+        console.log("***");
         for (const team of this.teams) {
             for (const [i, battler] of team.battlers.entries()) {
                 battler.active = i === 0;
             }
         }
-        for (const active of this.getAllActive()) {
-            await this.runEvt('SwitchIn', {}, active);
+        for (const active of this.getAllActiveInSpeedOrder()) {
+            await this.runEvt('SwitchIn', { autostart: false }, active);
         }
+        for (const active of this.getAllActiveInSpeedOrder()) {
+            await this.runEvt('Start', {}, active);
+        }
+        console.log("===\n");
     }
     getAllBattlers() {
         return this.teams.flatMap(team => team.battlers);
     }
-    getAllActive() {
-        return this.teams.flatMap(team => team.getAllActive());
+    /** Sorts all active battlers in speed order, fastest first. */
+    getAllActiveInSpeedOrder() {
+        return this.teams.flatMap(team => team.getAllActive()).sort((a, b) => b.getEffectiveStats().spe - a.getEffectiveStats().spe);
     }
     async showText(...texts) {
         for (const text of texts) {
@@ -92,17 +101,21 @@ class Battle {
             return this.runEvtImpl(new Evt(...args));
     }
     async runEvtImpl(evt) {
+        this.evtAncestry.unshift(evt);
         while (this.getRemainingListenersForEvt(evt).length > 0) {
             const listener = this.getRemainingListenersForEvt(evt)[0];
             evt.handledCallbacks.push(listener.callback);
             if (evt.listenerBlacklists.some(lb => lb.checker(listener) === true))
                 continue;
             const result = await listener.callback.call(this, evt, listener);
-            if (result === null)
+            if (result === null) {
+                this.evtAncestry.shift();
                 return null;
+            }
             if (result !== undefined)
                 evt.data = result;
         }
+        this.evtAncestry.shift();
         return evt.data;
     }
     getRemainingListenersForEvt(evt) {
@@ -196,15 +209,22 @@ class Battle {
         }
         return listeners;
     }
+    async startTurn() {
+        console.log(`[[Turn #${this.turn}]]\n`);
+    }
     async endTurn() {
-        console.log("---");
-        for (const battler of this.getAllActive()) {
+        console.log("\n---");
+        for (const battler of this.getAllActiveInSpeedOrder()) {
             await this.runEvt(new Evt('Residual', {}, battler));
         }
         this.turn++;
+        console.log("---\n");
     }
     async chance(odds, forEvt) {
         return !!(await this.runEvt('Chance', { odds, forEvt }, forEvt.target, forEvt.source, forEvt.cause))?.result;
+    }
+    getEventAncestors(evt) {
+        return this.evtAncestry.slice(this.evtAncestry.indexOf(evt) + 1);
     }
 }
 export default Battle;

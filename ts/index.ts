@@ -31,22 +31,31 @@ gibble.setStats({
 	spe: 70
 });
 
-gibble.types = [Types.Type.DRAGON, Types.Type.GHOST];
+gibble.types = [Types.Type.DRAGON, Types.Type.GROUND];
 abra.types = [Types.Type.PSYCHIC];
 
-gibble.abilitySlot.baseAbility = DexAbilities.flash_fire;
-abra.abilitySlot.baseAbility = DexAbilities.serence_grace;
+gibble.abilitySlot.baseAbility = DexAbilities.immunity;
+abra.abilitySlot.baseAbility = DexAbilities.mold_breaker;
 
 battle.teams[0].addBattlers(abra);
 battle.teams[1].addBattlers(gibble);
 
 await battle.start();
 
-await battle.runEvt('Move', { move: DexMoves.ember }, [abra], gibble)
+await battle.startTurn();
+
 await battle.runEvt('Move', { move: DexMoves.ember }, [gibble], abra);
+await battle.runEvt('Move', { move: DexMoves.tackle }, [abra], gibble);
 
 await battle.endTurn();
 
+
+await battle.startTurn();
+
+await battle.runEvt('Move', { move: DexMoves.tackle }, [abra], gibble);
+await battle.runEvt('Move', { move: DexMoves.ember }, [gibble], abra);
+
+await battle.endTurn();
 
 
 

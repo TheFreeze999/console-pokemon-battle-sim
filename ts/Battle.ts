@@ -13,6 +13,9 @@ class Battle {
 	teams!: [Team, Team];
 	turn = 1;
 
+	readonly evtAncestry: Evt<any>[] = [];
+	get currentEvent() { return this.evtAncestry[0] ?? null };
+
 
 	private battlerIDGen = Util.createIDGen();
 	generateBattlerID() { return `B-${this.battlerIDGen.next().value}` as Battler.ID }
@@ -58,23 +61,30 @@ class Battle {
 	}
 
 	async start() {
+		console.log("***")
 		for (const team of this.teams) {
 			for (const [i, battler] of team.battlers.entries()) {
 				battler.active = i === 0;
 			}
 		}
 
-		for (const active of this.getAllActive()) {
-			await this.runEvt('SwitchIn', {}, active);
+		for (const active of this.getAllActiveInSpeedOrder()) {
+			await this.runEvt('SwitchIn', { autostart: false }, active);
 		}
+		for (const active of this.getAllActiveInSpeedOrder()) {
+			await this.runEvt('Start', {}, active);
+		}
+
+		console.log("===\n")
 	}
 
 	getAllBattlers() {
 		return this.teams.flatMap(team => team.battlers);
 	}
 
-	getAllActive() {
-		return this.teams.flatMap(team => team.getAllActive())
+	/** Sorts all active battlers in speed order, fastest first. */
+	getAllActiveInSpeedOrder() {
+		return this.teams.flatMap(team => team.getAllActive()).sort((a, b) => b.getEffectiveStats().spe - a.getEffectiveStats().spe)
 	}
 
 
@@ -112,6 +122,8 @@ class Battle {
 	}
 
 	private async runEvtImpl<N extends Evt.Name>(evt: Evt<N>) {
+		this.evtAncestry.unshift(evt);
+
 		while (this.getRemainingListenersForEvt(evt).length > 0) {
 			const listener = this.getRemainingListenersForEvt(evt)[0]!
 
@@ -123,9 +135,14 @@ class Battle {
 			const result = await listener.callback.call(this, evt, listener);
 
 
-			if (result === null) return null;
+			if (result === null) {
+				this.evtAncestry.shift();
+				return null;
+			}
 			if (result !== undefined) evt.data = result;
 		}
+
+		this.evtAncestry.shift();
 
 		return evt.data;
 	}
@@ -232,16 +249,26 @@ class Battle {
 		return listeners;
 	}
 
+	async startTurn() {
+		console.log(`[[Turn #${this.turn}]]\n`)
+	}
+
 	async endTurn() {
-		console.log("---")
-		for (const battler of this.getAllActive()) {
+		console.log("\n---")
+		for (const battler of this.getAllActiveInSpeedOrder()) {
 			await this.runEvt(new Evt('Residual', {}, battler));
 		}
 		this.turn++;
+		console.log("---\n")
+
 	}
 
 	async chance(odds: [numerator: number, denominator: number], forEvt: Evt<any>) {
 		return !!(await this.runEvt('Chance', { odds, forEvt }, forEvt.target, forEvt.source, forEvt.cause))?.result
+	}
+
+	getEventAncestors(evt: Evt<any>) {
+		return this.evtAncestry.slice(this.evtAncestry.indexOf(evt) + 1);
 	}
 }
 

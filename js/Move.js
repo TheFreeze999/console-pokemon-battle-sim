@@ -8,6 +8,7 @@ class Move {
     basePower = 0;
     type = Types.Type["???"];
     contact = false;
+    bypassTypeImmunity = false;
     PP = 10;
     id;
     handler = {};

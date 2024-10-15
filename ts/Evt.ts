@@ -19,18 +19,24 @@ class Evt<N extends Evt.Name> {
 
 namespace Evt {
 	type DataTypes = {
-		SwitchIn: {};
+		SwitchIn: { autostart?: boolean };
 		Start: {};
 		Chance: { odds: [numerator: number, denominator: number], result?: boolean, forEvt: Evt<Name> };
 		Damage: { amount: number, isDirect?: boolean };
 		Heal: { amount: number };
 		Move: { move: Move, ignoreAbility?: boolean };
+		/** Fires when an attacking move deals its standard damage. */
 		ApplyMoveDamage: { moveEvt: Evt<"Move"> };
-		Hit: { moveEvt: Evt<"Move"> };
-		ApplyMoveSecondary: { moveEvt: Evt<"Move"> };
+		/** Fires when a move (status or attacking) hits a target (not self). Apply e.g. Glare effect here*/
+		Hit: { moveEvt: Evt<"Move">, fail?: boolean };
+		/** Fires at the end of the move usage regardless. Apply e.g. Swords Dance effect here */
+		ApplyMoveSecondary: { moveEvt: Evt<"Move">, fail?: boolean };
 		Residual: {};
 		ApplyCondition: { condition: Condition };
-		GetImmunity: { isImmune: boolean };
+		RemoveCondition: { condition: Condition };
+		GetImmunity: { isImmune: boolean, showImmunityText?: boolean };
+		GetTypeEffectiveness: { effectiveness: number };
+		GetMoveDamageMultiplier: { multiplier: number };
 	}
 	export type Name = keyof DataTypes;
 
@@ -47,7 +53,10 @@ namespace Evt {
 		ApplyMoveSecondary: Battler;
 		Residual: Battler;
 		ApplyCondition: Battler;
+		RemoveCondition: Battler;
 		GetImmunity: Battler;
+		GetTypeEffectiveness: Battler;
+		GetMoveDamageMultiplier: Battler;
 	};
 	type DefaultTargetType = Battler[] | Battler | Battle;
 	export type TargetType<N extends Name = Name> = N extends keyof TargetTypes ? TargetTypes[N] : DefaultTargetType;
