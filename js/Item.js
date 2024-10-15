@@ -1,7 +1,7 @@
 class Item {
     displayName;
     id;
-    handler = {};
+    handlers = [];
     constructor(id, displayName, data = {}) {
         this.displayName = displayName;
         this.id = id;

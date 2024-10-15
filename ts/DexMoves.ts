@@ -14,12 +14,12 @@ const DexMoves = {
 		category: Move.Category.SPECIAL,
 		type: Types.Type.FIRE,
 		basePower: 40,
-		handler: {
+		handlers: [{
 			async onCauseHit(evt) {
 				if (await this.chance([10, 100], evt))
 					await this.runEvt('ApplyCondition', { condition: DexConditions.brn }, evt.target, evt.source, DexMoves.ember);
 			}
-		}
+		}]
 	}),
 	water_pulse: new Move('water_pulse', 'Water Pulse', {
 		category: Move.Category.SPECIAL,
@@ -28,60 +28,60 @@ const DexMoves = {
 	}),
 	dragon_rage: new Move('dragon_rage', 'Dragon Rage', {
 		category: Move.Category.SPECIAL,
-		handler: {
+		handlers: [{
 			onCauseHitPriority: 101,
 			async onCauseHit({ data, target, source, cause }) {
 				await this.runEvt('Damage', { amount: 60, isDirect: true }, target, source, cause);
 			}
-		}
+		}]
 	}),
 	glare: new Move('glare', 'Glare', {
 		category: Move.Category.STATUS,
 		type: Types.Type.NORMAL,
 		bypassTypeImmunity: true,
-		handler: {
+		handlers: [{
 			onCauseHitPriority: 101,
 			async onCauseHit(evt) {
 				evt.data.fail = !await this.runEvt('ApplyCondition', { condition: DexConditions.prz }, evt.target, evt.source, DexMoves.ember);
 			}
-		}
+		}]
 	}),
 	thunder_wave: new Move('thunder_wave', 'Thunder Wave', {
 		category: Move.Category.STATUS,
 		type: Types.Type.ELECTRIC,
-		handler: {
+		handlers: [{
 			onCauseHitPriority: 101,
 			async onCauseHit(evt) {
 				evt.data.fail = !await this.runEvt('ApplyCondition', { condition: DexConditions.prz }, evt.target, evt.source, DexMoves.ember);
 			}
-		}
+		}]
 	}),
 	toxic: new Move('toxic', 'Toxic', {
 		category: Move.Category.STATUS,
 		type: Types.Type.POISON,
-		handler: {
+		handlers: [{
 			onCauseHitPriority: 101,
 			async onCauseHit(evt) {
 				evt.data.fail = !await this.runEvt('ApplyCondition', { condition: DexConditions.tox }, evt.target, evt.source, DexMoves.ember);
 			}
-		}
+		}]
 	}),
 	recover: new Move('recover', 'Recover', {
 		type: Types.Type.NORMAL,
 		category: Move.Category.STATUS,
 		targeting: Move.Targeting.SELF,
-		handler: {
+		handlers: [{
 			onCauseApplyMoveSecondaryPriority: 150,
 			async onCauseApplyMoveSecondary({ target, data }) {
 				data.fail = !await this.runEvt('Heal', { amount: target.stats.hp / 2 }, target, target, DexMoves.recover);
 			}
-		}
+		}]
 	}),
 	rest: new Move('rest', 'Rest', {
 		type: Types.Type.NORMAL,
 		category: Move.Category.STATUS,
 		targeting: Move.Targeting.SELF,
-		handler: {
+		handlers: [{
 			onCauseApplyMoveSecondaryPriority: 150,
 			async onCauseApplyMoveSecondary({ target, data, source }) {
 				if (target.currentHP >= target.stats.hp) {
@@ -102,19 +102,17 @@ const DexMoves = {
 					if (status === DexConditions.slp) continue;
 					await this.runEvt('RemoveCondition', { condition: status }, target, source, DexMoves.rest);
 				}
-
-
 			},
-
-			onAnyApplyConditionPriority: 99,
-			async onAnyApplyCondition({ cause, target }) {
-				if (cause !== DexMoves.rest) return;
+		},
+		{
+			onCauseApplyConditionPriority: 98,
+			async onCauseApplyCondition({ target }) {
 				const parent = this.parentEvent;
 				if (parent?.hasName("ApplyMoveSecondary") !== true) return;
 
 				parent.data.fail = !await this.runEvt('Heal', { amount: target.stats.hp - target.currentHP }, target, target, DexMoves.rest);
 			}
-		}
+		}]
 	})
 } as const;
 

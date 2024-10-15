@@ -2,7 +2,7 @@ class Condition {
     displayName;
     isStatus = false;
     id;
-    handler = {};
+    handlers = [];
     constructor(id, displayName, data = {}) {
         this.displayName = displayName;
         this.id = id;

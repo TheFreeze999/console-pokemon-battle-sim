@@ -4,7 +4,7 @@ import Evt from "./Evt.js";
 class Condition implements Effect {
 	isStatus = false;
 	id: Effect.ID;
-	handler: Evt.Handler = {};
+	handlers: Evt.Handler[] = [];
 	constructor(id: string, public displayName: string, data: Partial<Condition.Data> = {}) {
 		this.id = id as Effect.ID;
 		Object.assign(this, data);
@@ -12,7 +12,7 @@ class Condition implements Effect {
 }
 
 namespace Condition {
-	export type Data = Pick<Condition, "isStatus" | "handler">;
+	export type Data = Pick<Condition, "isStatus" | "handlers">;
 }
 
 

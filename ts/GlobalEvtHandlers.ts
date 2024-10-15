@@ -11,11 +11,13 @@ import Util from "./util.js";
 
 const EFFECT_GLOBAL_HANDLERS: Evt.Handler[] = [];
 for (const effect of ([DexAbilities, DexItems, DexConditions, DexMoves].flatMap(dex => Object.values(dex))) as Effect[]) {
-	const handler: Evt.Handler = { ...effect.handler };
-	for (const key in effect.handler) {
-		if (!key.startsWith('onAny')) delete handler[key as keyof Evt.Handler];
+	const handlers: Evt.Handler[] = [...effect.handlers];
+	for (let { ...handler } of handlers) {
+		for (const key in handler) {
+			if (!key.startsWith('onAny')) delete handler[key as keyof Evt.Handler];
+		}
 	}
-	EFFECT_GLOBAL_HANDLERS.push(handler)
+	EFFECT_GLOBAL_HANDLERS.push(...handlers)
 }
 
 const PRE_EXECUTION: Evt.Handler = {

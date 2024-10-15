@@ -6,7 +6,7 @@ import Types from "./Types.js";
 const DexAbilities = {
 	no_ability: new Ability('no_ability', 'No Ability'),
 	magic_guard: new Ability('magic_guard', 'Magic Guard', {
-		handler: {
+		handlers: [{
 			onTargetDamagePriority: 200,
 			async onTargetDamage({ data }) {
 				if (data.isDirect !== true) {
@@ -14,10 +14,10 @@ const DexAbilities = {
 					return null;
 				}
 			}
-		}
+		}]
 	}),
 	flash_fire: new Ability('flash_fire', 'Flash Fire', {
-		handler: {
+		handlers: [{
 			onTargetGetImmunityPriority: 200,
 			async onTargetGetImmunity({ target, data, cause: move, source }) {
 				if (!(move instanceof Move)) return;
@@ -28,10 +28,10 @@ const DexAbilities = {
 
 				await this.runEvt('ApplyCondition', { condition: DexConditions.flash_fire_boost }, target, source, move);
 			}
-		}
+		}]
 	}),
 	water_absorb: new Ability('water_absorb', 'Water Absorb', {
-		handler: {
+		handlers: [{
 			onTargetGetImmunityPriority: 200,
 			async onTargetGetImmunity({ target, data, cause }) {
 				if (!(cause instanceof Move)) return;
@@ -42,10 +42,10 @@ const DexAbilities = {
 
 				data.showImmunityText = !(await this.runEvt('Heal', { amount: target.stats.hp / 4 }, target, target, DexAbilities.water_absorb))?.amount;
 			}
-		}
+		}]
 	}),
 	mold_breaker: new Ability('mold_breaker', 'Mold Breaker', {
-		handler: {
+		handlers: [{
 			onTargetStartPriority: 150,
 			async onTargetStart({ target }) {
 				await this.showText(`[${target.name}'s Mold Breaker]`);
@@ -56,18 +56,18 @@ const DexAbilities = {
 			async onSourceMove({ data }) {
 				data.ignoreAbility = true;
 			}
-		}
+		}]
 	}),
 	serence_grace: new Ability('serene_grace', 'Serene Grace', {
-		handler: {
+		handlers: [{
 			onSourceChancePriority: 200,
 			async onSourceChance({ data, cause }) {
 				if (cause instanceof Move) data.odds[0] *= 2;
 			}
-		}
+		}]
 	}),
 	immunity: new Ability('immunity', 'Immunity', {
-		handler: {
+		handlers: [{
 			onTargetCheckConditionImmunityPriority: 200,
 			async onTargetCheckConditionImmunity({ data, target, cause }) {
 				if (![DexConditions.psn, DexConditions.tox].includes(data.condition)) return;
@@ -89,10 +89,10 @@ const DexAbilities = {
 			async onCauseRemoveCondition({ target }) {
 				await this.showText(`[${target.name}'s Immunity]`)
 			}
-		}
+		}]
 	}),
 	limber: new Ability('limber', 'Limber', {
-		handler: {
+		handlers: [{
 			onTargetCheckConditionImmunityPriority: 200,
 			async onTargetCheckConditionImmunity({ data, target, cause }) {
 				if (data.condition !== DexConditions.prz) return;
@@ -113,10 +113,10 @@ const DexAbilities = {
 			async onCauseRemoveCondition({ target }) {
 				await this.showText(`[${target.name}'s Limber]`)
 			}
-		}
+		}]
 	}),
 	insomnia: new Ability('insomnia', 'Insomnia', {
-		handler: {
+		handlers: [{
 			onTargetCheckConditionImmunityPriority: 200,
 			async onTargetCheckConditionImmunity({ data, target, cause }) {
 				if (data.condition !== DexConditions.slp) return;
@@ -137,30 +137,30 @@ const DexAbilities = {
 			async onCauseRemoveCondition({ target }) {
 				await this.showText(`[${target.name}'s Insomnia]`)
 			}
-		}
+		}]
 	}),
 	corrosion: new Ability('corrosion', 'Corrosion', {
 		// Effect implemented in ./DexConditions.ts#psn & #tox
 	}),
 	multiscale: new Ability('multiscale', 'Multiscale', {
-		handler: {
+		handlers: [{
 			async onTargetGetMoveDamageMultiplier({ target, data }) {
 				if (target.currentHP < target.stats.hp) return;
 				data.multiplier *= 0.5;
 			}
-		}
+		}]
 	}),
 	shadow_shield: new Ability('shadow_shield', 'Shadow Shield', {
 		ignorable: false,
-		handler: {
+		handlers: [{
 			async onTargetGetMoveDamageMultiplier({ target, data }) {
 				if (target.currentHP < target.stats.hp) return;
 				data.multiplier *= 0.5;
 			}
-		}
+		}]
 	}),
 	guts: new Ability('guts', 'Guts', {
-		handler: {
+		handlers: [{
 			async onSourceGetMoveDamageMultiplier({ data, cause, source }) {
 				if (!(cause instanceof Move)) return;
 				if (cause.category !== Move.Category.PHYSICAL || !cause.isStandardDamagingAttack()) return;
@@ -169,11 +169,11 @@ const DexAbilities = {
 				data.multiplier *= 1.5;
 				// Burn attack drop negation implemented in ./DexConditions.ts#brn
 			}
-		}
+		}]
 	}),
 
 	poison_heal: new Ability('poison_heal', 'Poison Heal', {
-		handler: {
+		handlers: [{
 			onTargetDamagePriority: 200,
 			async onTargetDamage({ cause }) {
 				if ([DexConditions.psn, DexConditions.tox].includes(cause as any)) return null;
@@ -189,7 +189,7 @@ const DexAbilities = {
 			async onCauseHeal({ target }) {
 				await this.showText(`[${target.name}'s Poison Heal]`)
 			}
-		}
+		}]
 	})
 } as const;
 

@@ -17,7 +17,7 @@ class Move implements Effect, Move.Data {
 	PP = 10;
 	id: Effect.ID;
 
-	handler: Evt.Handler = {};
+	handlers: Evt.Handler[] = [];
 
 	constructor(id: string, public displayName: string, data: Partial<Move.Data> = {}) {
 		this.id = id as Effect.ID;
@@ -65,7 +65,7 @@ namespace Move {
 		STATUS = 'STATUS',
 	}
 
-	export type Data = Pick<Move, "category" | "targeting" | "basePower" | "type" | "contact" | "PP" | "handler" | "bypassTypeImmunity">
+	export type Data = Pick<Move, "category" | "targeting" | "basePower" | "type" | "contact" | "PP" | "handlers" | "bypassTypeImmunity">
 }
 
 

@@ -7,7 +7,7 @@ import Types from "./Types.js";
 const DexConditions = {
 	brn: new Condition('brn', 'Burn', {
 		isStatus: true,
-		handler: {
+		handlers: [{
 			onAnyCheckConditionImmunityPriority: 200,
 			async onAnyCheckConditionImmunity({ data, target }) {
 				if (data.condition !== DexConditions.brn) return;
@@ -42,11 +42,11 @@ const DexConditions = {
 			async onCauseDamage({ target }) {
 				await this.showText(`${target.name} was hurt by its burn.`)
 			}
-		}
+		}]
 	}),
 	psn: new Condition('psn', 'Poison', {
 		isStatus: true,
-		handler: {
+		handlers: [{
 			onAnyCheckConditionImmunityPriority: 200,
 			async onAnyCheckConditionImmunity({ data, target, source }) {
 				if (data.condition !== DexConditions.psn) return;
@@ -72,11 +72,11 @@ const DexConditions = {
 			async onCauseDamage({ target }) {
 				await this.showText(`${target.name} was hurt by poison.`)
 			}
-		}
+		}]
 	}),
 	tox: new Condition('tox', 'Toxic', {
 		isStatus: true,
-		handler: {
+		handlers: [{
 			onAnyCheckConditionImmunityPriority: 200,
 			async onAnyCheckConditionImmunity({ data, target, source }) {
 				if (data.condition !== DexConditions.tox) return;
@@ -105,11 +105,11 @@ const DexConditions = {
 			async onCauseDamage({ target }) {
 				await this.showText(`${target.name} was hurt by poison.`)
 			}
-		}
+		}]
 	}),
 	prz: new Condition('prz', 'Paralysis', {
 		isStatus: true,
-		handler: {
+		handlers: [{
 			onAnyCheckConditionImmunityPriority: 200,
 			async onAnyCheckConditionImmunity({ data, target }) {
 				if (data.condition !== DexConditions.prz) return;
@@ -138,11 +138,11 @@ const DexConditions = {
 				if (data.condition !== DexConditions.prz) return;
 				await this.showText(`${target.name} was cured of its paralysis.`)
 			},
-		}
+		}]
 	}),
 	slp: new Condition('slp', 'Sleep', {
 		isStatus: true,
-		handler: {
+		handlers: [{
 			onAnyApplyConditionPriority: 99,
 			async onAnyApplyCondition({ target, data }) {
 				if (data.condition !== DexConditions.slp) return;
@@ -161,17 +161,17 @@ const DexConditions = {
 				if (data.condition !== DexConditions.slp) return;
 				await this.showText(`${target.name} woke up.`)
 			},
-		}
+		}]
 	}),
 
 	flash_fire_boost: new Condition('flash_fire_boost', 'Flash Fire Boost', {
-		handler: {
+		handlers: [{
 			async onSourceGetMoveDamageMultiplier({ data, cause }) {
 				if (!(cause instanceof Move)) return;
 				if (cause.type !== Types.Type.FIRE) return;
 				data.multiplier *= 1.5;
 			}
-		}
+		}]
 	}),
 } as const;
 

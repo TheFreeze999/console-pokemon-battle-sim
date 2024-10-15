@@ -195,16 +195,18 @@ class Battle {
 		}
 
 		if (evt.cause) {
-			const callbackName: Evt.CallbackName<N> = `onCause${evt.name}`;
-			const callback = evt.cause.handler[callbackName];
-			if (callback) {
-				const listener: Evt.Listener<N> = {
-					evt,
-					priority: evt.cause.handler[`${callbackName}Priority`] ?? 0,
-					callback: callback as any,
-					origin: { cause: evt.cause }
+			for (const handler of evt.cause.handlers) {
+				const callbackName: Evt.CallbackName<N> = `onCause${evt.name}`;
+				const callback = handler[callbackName];
+				if (callback) {
+					const listener: Evt.Listener<N> = {
+						evt,
+						priority: handler[`${callbackName}Priority`] ?? 0,
+						callback: callback as any,
+						origin: { cause: evt.cause }
+					}
+					listeners.push(listener)
 				}
-				listeners.push(listener)
 			}
 		}
 
@@ -235,24 +237,27 @@ class Battle {
 				'foe': 'Foe'
 			} as const)[relation]
 			const callbackName: Evt.CallbackName<N> = `on${targetOrSource}${relationStr}${evt.name}`;
-			const callback = effect.handler[`${callbackName}`];
-			if (!callback) continue;
 
-			let origin: Evt.Listener<N>["origin"];
+			for (const handler of effect.handlers) {
+				const callback = handler[`${callbackName}`];
+				if (!callback) continue;
 
-			if (targetOrSource === 'Target') {
-				origin = { target: battler, relation, wieldedEffect: effect }
-			} else {
-				origin = { source: battler, relation, wieldedEffect: effect }
+				let origin: Evt.Listener<N>["origin"];
+
+				if (targetOrSource === 'Target') {
+					origin = { target: battler, relation, wieldedEffect: effect }
+				} else {
+					origin = { source: battler, relation, wieldedEffect: effect }
+				}
+
+				const listener: Evt.Listener<N> = {
+					evt,
+					priority: handler[`${callbackName}Priority`] ?? 0,
+					callback: callback as any,
+					origin
+				}
+				listeners.push(listener);
 			}
-
-			const listener: Evt.Listener<N> = {
-				evt,
-				priority: effect.handler[`${callbackName}Priority`] ?? 0,
-				callback: callback as any,
-				origin
-			}
-			listeners.push(listener);
 		}
 		return listeners;
 	}

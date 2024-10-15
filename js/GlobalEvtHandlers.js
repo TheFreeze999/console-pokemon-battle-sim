@@ -9,12 +9,14 @@ import Types from "./Types.js";
 import Util from "./util.js";
 const EFFECT_GLOBAL_HANDLERS = [];
 for (const effect of ([DexAbilities, DexItems, DexConditions, DexMoves].flatMap(dex => Object.values(dex)))) {
-    const handler = { ...effect.handler };
-    for (const key in effect.handler) {
-        if (!key.startsWith('onAny'))
-            delete handler[key];
+    const handlers = [...effect.handlers];
+    for (let { ...handler } of handlers) {
+        for (const key in handler) {
+            if (!key.startsWith('onAny'))
+                delete handler[key];
+        }
     }
-    EFFECT_GLOBAL_HANDLERS.push(handler);
+    EFFECT_GLOBAL_HANDLERS.push(...handlers);
 }
 const PRE_EXECUTION = {
     onAnyMovePriority: 110,

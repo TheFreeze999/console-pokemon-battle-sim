@@ -35,7 +35,7 @@ gibble.types = [Types.Type.DRAGON, Types.Type.GROUND];
 abra.types = [Types.Type.PSYCHIC];
 
 gibble.abilitySlot.baseAbility = DexAbilities.shadow_shield;
-abra.abilitySlot.baseAbility = DexAbilities.insomnia;
+// abra.abilitySlot.baseAbility = DexAbilities.insomnia;
 
 abra.itemSlot.item = DexItems.toxic_orb;
 

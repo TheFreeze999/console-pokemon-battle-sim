@@ -156,16 +156,18 @@ class Battle {
             }
         }
         if (evt.cause) {
-            const callbackName = `onCause${evt.name}`;
-            const callback = evt.cause.handler[callbackName];
-            if (callback) {
-                const listener = {
-                    evt,
-                    priority: evt.cause.handler[`${callbackName}Priority`] ?? 0,
-                    callback: callback,
-                    origin: { cause: evt.cause }
-                };
-                listeners.push(listener);
+            for (const handler of evt.cause.handlers) {
+                const callbackName = `onCause${evt.name}`;
+                const callback = handler[callbackName];
+                if (callback) {
+                    const listener = {
+                        evt,
+                        priority: handler[`${callbackName}Priority`] ?? 0,
+                        callback: callback,
+                        origin: { cause: evt.cause }
+                    };
+                    listeners.push(listener);
+                }
             }
         }
         for (const handler of GLOBAL_EVENT_HANDLERS) {
@@ -193,23 +195,25 @@ class Battle {
                 'foe': 'Foe'
             }[relation];
             const callbackName = `on${targetOrSource}${relationStr}${evt.name}`;
-            const callback = effect.handler[`${callbackName}`];
-            if (!callback)
-                continue;
-            let origin;
-            if (targetOrSource === 'Target') {
-                origin = { target: battler, relation, wieldedEffect: effect };
+            for (const handler of effect.handlers) {
+                const callback = handler[`${callbackName}`];
+                if (!callback)
+                    continue;
+                let origin;
+                if (targetOrSource === 'Target') {
+                    origin = { target: battler, relation, wieldedEffect: effect };
+                }
+                else {
+                    origin = { source: battler, relation, wieldedEffect: effect };
+                }
+                const listener = {
+                    evt,
+                    priority: handler[`${callbackName}Priority`] ?? 0,
+                    callback: callback,
+                    origin
+                };
+                listeners.push(listener);
             }
-            else {
-                origin = { source: battler, relation, wieldedEffect: effect };
-            }
-            const listener = {
-                evt,
-                priority: effect.handler[`${callbackName}Priority`] ?? 0,
-                callback: callback,
-                origin
-            };
-            listeners.push(listener);
         }
         return listeners;
     }

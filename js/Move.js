@@ -11,7 +11,7 @@ class Move {
     bypassTypeImmunity = false;
     PP = 10;
     id;
-    handler = {};
+    handlers = [];
     constructor(id, displayName, data = {}) {
         this.displayName = displayName;
         this.id = id;

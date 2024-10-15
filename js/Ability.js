@@ -2,7 +2,7 @@ class Ability {
     displayName;
     id;
     ignorable = true;
-    handler = {};
+    handlers = [];
     constructor(id, displayName, data = {}) {
         this.displayName = displayName;
         this.id = id;
