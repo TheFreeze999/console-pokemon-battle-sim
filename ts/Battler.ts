@@ -8,6 +8,7 @@ import Util from "./util.js";
 import Condition from "./Condition.js";
 import Effect from "./Effect.js";
 import Ability from "./Ability.js";
+import Evt from "./Evt.js";
 
 const BATTLER_SIGNATURE = Symbol('BATTLER_SIGNATURE');
 class Battler {
@@ -16,6 +17,15 @@ class Battler {
 	team!: Team;
 	stats = Stats.Create.base();
 	statBoosts = Stats.Create.boostable();
+	hiddenStatMultipliers: Stats.Boostable = {
+		atk: 1,
+		def: 1,
+		spA: 1,
+		spD: 1,
+		spe: 1,
+		acc: 1,
+		eva: 1,
+	};
 	currentHP = -1;
 	fainted = false;
 	active = false;
@@ -30,6 +40,8 @@ class Battler {
 	data: Record<keyof any, any> = {}
 
 	types: Types.Type[] = [Types.Type["???"]];
+
+	consecutiveProtectLikeUsages = 0;
 
 	/** Move to PP map */
 	moveSlots: Battler.MoveSlot[] = [];
@@ -151,7 +163,7 @@ class Battler {
 			if (this.statBoosts[stat] > 0) numerator += this.statBoosts[stat];
 			else if (this.statBoosts[stat] < 0) denominator += this.statBoosts[stat];
 
-			result[stat] = this.stats[stat] * (numerator / denominator)
+			result[stat] = this.stats[stat] * (numerator / denominator) * this.hiddenStatMultipliers[stat];
 		}
 		return result;
 	}
@@ -164,12 +176,12 @@ class Battler {
 		return this.types.includes(type);
 	}
 
-	async useMove(move: Move, target?: Battler[]) {
+	async useMove(move: Move, target?: Battler[], data: Partial<Evt.DataType<"Move">> = {}) {
 		if (move.targeting === Move.Targeting.SELF) target ??= [this];
 		else if (move.targeting === Move.Targeting.ONE_OTHER) target ??= [Util.Random.arrayEl(this.getActiveFoes())];
 		else target ??= [];
 
-		await this.battle.runEvt('Move', { move }, target, this);
+		await this.battle.runEvt('Move', { move, ...data }, target, this);
 	}
 }
 

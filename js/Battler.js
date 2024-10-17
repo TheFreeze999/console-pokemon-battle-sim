@@ -10,6 +10,15 @@ class Battler {
     team;
     stats = Stats.Create.base();
     statBoosts = Stats.Create.boostable();
+    hiddenStatMultipliers = {
+        atk: 1,
+        def: 1,
+        spA: 1,
+        spD: 1,
+        spe: 1,
+        acc: 1,
+        eva: 1,
+    };
     currentHP = -1;
     fainted = false;
     active = false;
@@ -22,6 +31,7 @@ class Battler {
     conditions = new Set();
     data = {};
     types = [Types.Type["???"]];
+    consecutiveProtectLikeUsages = 0;
     /** Move to PP map */
     moveSlots = [];
     getMoves() {
@@ -124,7 +134,7 @@ class Battler {
                 numerator += this.statBoosts[stat];
             else if (this.statBoosts[stat] < 0)
                 denominator += this.statBoosts[stat];
-            result[stat] = this.stats[stat] * (numerator / denominator);
+            result[stat] = this.stats[stat] * (numerator / denominator) * this.hiddenStatMultipliers[stat];
         }
         return result;
     }
@@ -134,14 +144,14 @@ class Battler {
     hasType(type) {
         return this.types.includes(type);
     }
-    async useMove(move, target) {
+    async useMove(move, target, data = {}) {
         if (move.targeting === Move.Targeting.SELF)
             target ??= [this];
         else if (move.targeting === Move.Targeting.ONE_OTHER)
             target ??= [Util.Random.arrayEl(this.getActiveFoes())];
         else
             target ??= [];
-        await this.battle.runEvt('Move', { move }, target, this);
+        await this.battle.runEvt('Move', { move, ...data }, target, this);
     }
 }
 export default Battler;

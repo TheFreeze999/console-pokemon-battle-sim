@@ -17,6 +17,8 @@ class Battle {
     effectStates = {};
     winner = null;
     get ended() { return this.winner !== null; }
+    actions = new Map();
+    completedActions = new Map();
     /** Gets the state tied to each Battler-Effect pair
      */
     getEffectState(target, effect) {
@@ -90,6 +92,11 @@ class Battle {
         };
         console.log("\x1b[34m", ">", ...texts.map(text => smartText(text)), "\x1b[0m");
     }
+    async updateAllActive() {
+        for (const battler of this.getAllActiveInSpeedOrder()) {
+            await this.runEvt('Update', {}, battler);
+        }
+    }
     async runEvt(...args) {
         if (args.length === 1) {
             return this.runEvtImpl(args[0]);
@@ -101,10 +108,14 @@ class Battle {
         if (this.ended)
             return null;
         this.evtAncestry.unshift(evt);
+        if (!this.evtAncestry.some(e => e.hasName("Update"))) {
+            await this.updateAllActive();
+        }
         if (this.parentEvent)
             for (const lb of this.parentEvent.listenerBlacklists)
                 evt.listenerBlacklists.add(lb);
         let lastPriority = null;
+        let returnNull = false;
         while (this.getRemainingListenersForEvt(evt, lastPriority).length > 0) {
             const listener = this.getRemainingListenersForEvt(evt, lastPriority)[0];
             lastPriority = listener.priority;
@@ -113,14 +124,17 @@ class Battle {
                 continue;
             const result = await listener.callback.call(this, evt, listener);
             if (result === null) {
-                this.evtAncestry.shift();
-                return null;
+                returnNull = true;
+                break;
             }
             if (result !== undefined)
                 evt.data = result;
         }
+        if (!this.evtAncestry.some(e => e.hasName("Update"))) {
+            await this.updateAllActive();
+        }
         this.evtAncestry.shift();
-        return evt.data;
+        return returnNull ? null : evt.data;
     }
     getRemainingListenersForEvt(evt, lastPriority) {
         const listeners = [];
@@ -219,8 +233,10 @@ class Battle {
     }
     async startTurn() {
         console.log(`[[Turn #${this.turn}]]\n`);
+        await this.updateAllActive();
     }
     async endTurn() {
+        await this.updateAllActive();
         console.log("\n---");
         for (const battler of this.getAllActiveInSpeedOrder()) {
             await this.runEvt(new Evt('Residual', {}, battler));
@@ -235,6 +251,33 @@ class Battle {
     }
     getEventAncestors(evt) {
         return this.evtAncestry.slice(this.evtAncestry.indexOf(evt) + 1);
+    }
+    submitAction(battler, action) {
+        this.actions.set(battler, action);
+    }
+    async executeAction(battler, action) {
+        if (action.type === 'move')
+            await battler.useMove(action.move, action.target);
+    }
+    async executeAllActions() {
+        while (this.actions.size > 0) {
+            const battlerActionPairs = [...this.actions].sort((a, b) => this.getActionPriority(...b) - this.getActionPriority(...a));
+            const [battler, action] = battlerActionPairs[0];
+            this.completedActions.set(battler, action);
+            this.actions.delete(battler);
+            await this.executeAction(battler, action);
+        }
+        this.completedActions.clear();
+    }
+    /** Highest priority gets executed first */
+    getActionPriority(battler, action) {
+        if (action.type === 'move') {
+            if (battler) {
+                const speedIndex = this.getAllActiveInSpeedOrder().indexOf(battler);
+                return action.move.priority - (speedIndex / 100);
+            }
+        }
+        return 0;
     }
 }
 export default Battle;

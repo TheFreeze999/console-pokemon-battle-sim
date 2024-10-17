@@ -1,3 +1,5 @@
+import Effect from "./Effect.js";
+
 namespace Util {
 	export namespace Random {
 		export function float(min: number, max: number): number {
@@ -10,6 +12,10 @@ namespace Util {
 
 		export function arrayEl<T>(array: T[]): T {
 			return array[int(0, array.length - 1)]!
+		}
+
+		export function arrayReorder<T>(array: T[]): T[] {
+			return [...array].sort((a, b) => arrayEl([-1, 1]));
 		}
 	}
 
@@ -49,6 +55,10 @@ namespace Util {
 	export function* createIDGen(): Generator<number, number, number> {
 		let i = 0;
 		while (true) yield i++;
+	}
+
+	export function getRandomFromDex<E extends Effect>(dex: Record<string, E>): E {
+		return Random.arrayEl(Object.entries(dex).map(([id, effect]) => effect))
 	}
 }
 

@@ -70,17 +70,17 @@ const DexAbilities = {
 	immunity: new Ability('immunity', 'Immunity', {
 		handlers: [{
 			onTargetCheckConditionImmunityPriority: 200,
-			async onTargetCheckConditionImmunity({ data, target, cause }) {
+			async onTargetCheckConditionImmunity({ data, target, cause, source }) {
 				if (![DexConditions.psn, DexConditions.tox].includes(data.condition)) return;
-				data.isImmune = true;
-				if (cause instanceof Move) {
+				if (source !== target && !data.isImmune && !(cause instanceof Move && cause.isStandardDamagingAttack())) {
 					await this.showText(`[${target.name}'s Immunity]`);
 					await this.showText(`${target.name} cannot be poisoned.`);
 				}
+				data.isImmune = true;
 			},
 
-			onTargetResidualPriority: 500,
-			async onTargetResidual({ target }) {
+			onTargetUpdatePriority: 200,
+			async onTargetUpdate({ target }) {
 				for (const poisoningCondition of [DexConditions.psn, DexConditions.tox]) {
 					await this.runEvt('RemoveCondition', { condition: poisoningCondition }, target, target, DexAbilities.immunity)
 				}
@@ -95,18 +95,18 @@ const DexAbilities = {
 	limber: new Ability('limber', 'Limber', {
 		handlers: [{
 			onTargetCheckConditionImmunityPriority: 200,
-			async onTargetCheckConditionImmunity({ data, target, cause }) {
+			async onTargetCheckConditionImmunity({ data, target, cause, source }) {
 				if (data.condition !== DexConditions.prz) return;
 
-				data.isImmune = true;
-				if (cause instanceof Move) {
+				if (source !== target && !data.isImmune && !(cause instanceof Move && cause.isStandardDamagingAttack())) {
 					await this.showText(`[${target.name}'s Limber]`);
 					await this.showText(`${target.name} cannot be paralyzed.`);
 				}
+				data.isImmune = true;
 			},
 
-			onTargetResidualPriority: 500,
-			async onTargetResidual({ target }) {
+			onTargetUpdatePriority: 200,
+			async onTargetUpdate({ target }) {
 				await this.runEvt('RemoveCondition', { condition: DexConditions.prz }, target, target, DexAbilities.limber)
 			},
 
@@ -119,18 +119,18 @@ const DexAbilities = {
 	insomnia: new Ability('insomnia', 'Insomnia', {
 		handlers: [{
 			onTargetCheckConditionImmunityPriority: 200,
-			async onTargetCheckConditionImmunity({ data, target, cause }) {
+			async onTargetCheckConditionImmunity({ data, target, cause, source }) {
 				if (data.condition !== DexConditions.slp) return;
 
-				data.isImmune = true;
-				if (cause instanceof Move) {
+				if (source !== target && !data.isImmune && !(cause instanceof Move && cause.isStandardDamagingAttack())) {
 					await this.showText(`[${target.name}'s Insomnia]`);
 					await this.showText(`${target.name} cannot fall asleep.`);
 				}
+				data.isImmune = true;
 			},
 
-			onTargetResidualPriority: 500,
-			async onTargetResidual({ target }) {
+			onTargetUpdatePriority: 200,
+			async onTargetUpdate({ target }) {
 				await this.runEvt('RemoveCondition', { condition: DexConditions.slp }, target, target, DexAbilities.insomnia)
 			},
 
@@ -141,7 +141,7 @@ const DexAbilities = {
 		}]
 	}),
 	corrosion: new Ability('corrosion', 'Corrosion', {
-		// Effect implemented in ./DexConditions.ts#psn & #tox
+		// Effect implemented in ./DexConditions.ts#psn#tox
 	}),
 	multiscale: new Ability('multiscale', 'Multiscale', {
 		handlers: [{
@@ -205,10 +205,43 @@ const DexAbilities = {
 				data.isDirect ??= false;
 				if (!data.isDirect) return;
 				if (target.currentHP < target.stats.hp) return;
+				if (data.amount < target.stats.hp) return
 
 				await this.showText(`[${target.name}'s Sturdy]`);
 				await this.showText(`${target.name} survived the hit.`);
-				data.amount = Util.clamper(0, target.stats.hp - 1)(data.amount);
+				data.amount = target.stats.hp - 1;
+			}
+		}]
+	}),
+	rough_skin: new Ability('rough_skin', 'Rough Skin', {
+		handlers: [{
+			onTargetHitPriority: 70,
+			async onTargetHit({ source, data, target }) {
+				if (!source) return;
+				if (!data.moveEvt.data.move.contact) return;
+
+				await this.runEvt(`Damage`, { amount: source.stats.hp / 8 }, source, target, DexAbilities.rough_skin);
+			},
+
+			onCauseDamagePriority: 101,
+			async onCauseDamage({ source }) {
+				await this.showText(`[${source?.name}'s Rough Skin]`)
+			}
+		}]
+	}),
+	magic_bounce: new Ability('magic_bounce', 'Magic Bounce', {
+		handlers: [{
+			onTargetMovePriority: 300,
+			async onTargetMove({ data }) {
+				if (!data.move.bounceable || data.causedByBounce === true) return;
+				data.bounced = true;
+			},
+
+			onSourceMovePriority: 300,
+			async onSourceMove({ data, source }) {
+				if (!data.causedByBounce) return;
+				if (source?.conditions.has(DexConditions.magic_coated)) return;
+				await this.showText(`[${source?.name}'s Magic Bounce]`)
 			}
 		}]
 	})

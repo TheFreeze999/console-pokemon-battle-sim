@@ -4,8 +4,9 @@ import Condition from "./Condition.js";
 import Effect from "./Effect.js";
 import Item from "./Item.js";
 import Move from "./Move.js";
+import Stats from "./Stats.js";
 
-class Evt<N extends Evt.Name> {
+class Evt<N extends Evt.Name = Evt.Name> {
 	listenerBlacklists = new Set<Evt.Listener.Blacklist<N>>();
 	handledCallbacks = new Set<Evt.Callback<N>>();
 
@@ -13,13 +14,14 @@ class Evt<N extends Evt.Name> {
 
 	}
 
-	hasName<T extends Evt.Name>(name: T): this is this | Evt<T> {
+	hasName<const T extends Evt.Name>(name: T): this is Evt<T> {
 		return this.name === name as any;
 	}
 }
 
 namespace Evt {
 	type DataTypes = {
+		Update: {};
 		SwitchIn: { autostart?: boolean };
 		Start: {};
 		Chance: { odds: [numerator: number, denominator: number], result?: boolean, forEvt: Evt<Name> };
@@ -27,7 +29,7 @@ namespace Evt {
 		Faint: {};
 		Heal: { amount: number };
 		CheckCanUseMove: { canUseMove: boolean }
-		Move: { move: Move, ignoreAbility?: boolean };
+		Move: { move: Move, ignoreAbility?: boolean, moveFailed?: boolean, bounced?: boolean, causedByBounce?: boolean };
 		/** Fires when an attacking move deals its standard damage. */
 		ApplyMoveDamage: { moveEvt: Evt<"Move"> };
 		/** Fires when a move (status or attacking) hits a target (not self). Apply e.g. Glare effect here*/
@@ -42,12 +44,14 @@ namespace Evt {
 		GetTypeEffectiveness: { effectiveness: number };
 		GetMoveDamageMultiplier: { multiplier: number };
 		RemoveItem: { method: 'consume' | 'take', itemRemoved?: Item }
+		ModifyStat: { stat: keyof Stats.Boostable, modifier: number };
 	}
 	export type Name = keyof DataTypes;
 
 	export type DataType<N extends Name = Name> = DataTypes[N];
 
 	type TargetTypes = {
+		Update: Battler;
 		SwitchIn: Battler;
 		Start: Battler;
 		Damage: Battler;
@@ -57,7 +61,7 @@ namespace Evt {
 		Move: Battler[];
 		ApplyMoveDamage: Battler;
 		Hit: Battler;
-		ApplyMoveSecondary: Battler;
+		ApplyMoveSecondary: Battler[];
 		Residual: Battler;
 		ApplyCondition: Battler;
 		RemoveCondition: Battler;
@@ -66,6 +70,7 @@ namespace Evt {
 		GetTypeEffectiveness: Battler;
 		GetMoveDamageMultiplier: Battler;
 		RemoveItem: Battler;
+		ModifyStat: Battler;
 	};
 	type DefaultTargetType = Battler[] | Battler | Battle;
 	export type TargetType<N extends Name = Name> = N extends keyof TargetTypes ? TargetTypes[N] : DefaultTargetType;

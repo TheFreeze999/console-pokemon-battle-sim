@@ -31,10 +31,10 @@ const DexItems = {
 	lum_berry: new Item('lum_berry', 'Lum Berry', {
 		isBerry: true,
 		handlers: [{
-			onTargetApplyConditionPriority: 80,
-			async onTargetApplyCondition({ data, target }) {
-				if (!data.condition.isStatus) return;
-				await this.runEvt('RemoveItem', { method: 'consume' }, target, target)
+			onTargetUpdatePriority: 200,
+			async onTargetUpdate({ data, target }) {
+				if (target.hasStatusCondition())
+					await this.runEvt('RemoveItem', { method: 'consume' }, target, target)
 			},
 
 			onAnyRemoveItemPriority: 85,
@@ -44,6 +44,17 @@ const DexItems = {
 				const condition = [...target.conditions].find(c => c.isStatus);
 				if (!condition) return;
 				await this.runEvt('RemoveCondition', { condition }, target, target, DexItems.lum_berry)
+			}
+		}]
+	}),
+	leftovers: new Item('leftovers', 'Leftovers', {
+		handlers: [{
+			async onTargetResidual({ target }) {
+				await this.runEvt('Heal', { amount: target.stats.hp / 16 }, target, target, DexItems.leftovers)
+			},
+			onCauseHealPriority: 101,
+			async onCauseHeal({ target }) {
+				await this.showText(`${target.name} recovered a little HP using its leftovers.`);
 			}
 		}]
 	})

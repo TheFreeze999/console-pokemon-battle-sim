@@ -5,6 +5,7 @@ import DexItems from "./DexItems.js";
 import Effect from "./Effect.js";
 import Evt from "./Evt.js";
 import GLOBAL_EVENT_HANDLERS from "./GlobalEvtHandlers.js";
+import Move from "./Move.js";
 import Team from "./Team.js";
 import Util from "./util.js";
 
@@ -13,7 +14,7 @@ class Battle {
 	teams!: [Team, Team];
 	turn = 1;
 
-	readonly evtAncestry: Evt<any>[] = [];
+	readonly evtAncestry: Evt<Evt.Name>[] = [];
 	get currentEvent() { return this.evtAncestry[0] ?? null };
 	get parentEvent() { return this.evtAncestry[1] ?? null };
 
@@ -25,6 +26,9 @@ class Battle {
 
 	winner: Team | null = null;
 	get ended() { return this.winner !== null }
+
+	actions = new Map<Battler, Battle.Action>();
+	completedActions = new Map<Battler, Battle.Action>();
 
 	/** Gets the state tied to each Battler-Effect pair
 	 */
@@ -91,7 +95,6 @@ class Battle {
 		return this.teams.flatMap(team => team.getAllActive()).sort((a, b) => b.getEffectiveStats().spe - a.getEffectiveStats().spe)
 	}
 
-
 	async showText(...texts: any[]) {
 		for (const text of texts) {
 			// await Util.delay(500);
@@ -113,6 +116,12 @@ class Battle {
 		console.log("\x1b[34m", ">", ...texts.map(text => smartText(text)), "\x1b[0m");
 	}
 
+	private async updateAllActive() {
+		for (const battler of this.getAllActiveInSpeedOrder()) {
+			await this.runEvt('Update', {}, battler);
+		}
+	}
+
 	async runEvt<N extends Evt.Name>(...args: ConstructorParameters<typeof Evt<N>> | [evt: Evt<N>]) {
 		if (args.length === 1) {
 			return this.runEvtImpl(args[0]);
@@ -122,13 +131,19 @@ class Battle {
 	private async runEvtImpl<N extends Evt.Name>(evt: Evt<N>) {
 		if (this.ended) return null;
 
-		this.evtAncestry.unshift(evt);
+		this.evtAncestry.unshift(evt as any);
+
+		if (!this.evtAncestry.some(e => e.hasName("Update"))) {
+			await this.updateAllActive();
+		}
 
 		if (this.parentEvent)
 			for (const lb of this.parentEvent.listenerBlacklists)
-				evt.listenerBlacklists.add(lb);
+				evt.listenerBlacklists.add(lb as any);
 
 		let lastPriority: number | null = null;
+
+		let returnNull = false;
 
 		while (this.getRemainingListenersForEvt(evt, lastPriority).length > 0) {
 
@@ -144,15 +159,20 @@ class Battle {
 
 
 			if (result === null) {
-				this.evtAncestry.shift();
-				return null;
+				returnNull = true;
+				break;
 			}
 			if (result !== undefined) evt.data = result;
 		}
 
+		if (!this.evtAncestry.some(e => e.hasName("Update"))) {
+			await this.updateAllActive();
+		}
+
 		this.evtAncestry.shift();
 
-		return evt.data;
+
+		return returnNull ? null : evt.data;
 	}
 
 	private getRemainingListenersForEvt<N extends Evt.Name>(evt: Evt<N>, lastPriority: number | null) {
@@ -263,10 +283,14 @@ class Battle {
 	}
 
 	async startTurn() {
-		console.log(`[[Turn #${this.turn}]]\n`)
+		console.log(`[[Turn #${this.turn}]]\n`);
+
+		await this.updateAllActive();
 	}
 
 	async endTurn() {
+		await this.updateAllActive();
+
 		console.log("\n---")
 		for (const battler of this.getAllActiveInSpeedOrder()) {
 			await this.runEvt(new Evt('Residual', {}, battler));
@@ -281,13 +305,53 @@ class Battle {
 		return !!(await this.runEvt('Chance', { odds, forEvt }, forEvt.target, forEvt.source, forEvt.cause))?.result
 	}
 
-	getEventAncestors(evt: Evt<any>) {
+	getEventAncestors(evt: Evt) {
 		return this.evtAncestry.slice(this.evtAncestry.indexOf(evt) + 1);
+	}
+
+	submitAction(battler: Battler, action: Battle.Action) {
+		this.actions.set(battler, action);
+	}
+
+	private async executeAction(battler: Battler, action: Battle.Action) {
+		if (action.type === 'move') await battler.useMove(action.move, action.target);
+	}
+
+	async executeAllActions() {
+		while (this.actions.size > 0) {
+			const battlerActionPairs = [...this.actions].sort((a, b) => this.getActionPriority(...b) - this.getActionPriority(...a));
+			const [battler, action] = battlerActionPairs[0]!
+
+			this.completedActions.set(battler, action);
+			this.actions.delete(battler);
+
+			await this.executeAction(battler, action);
+		}
+
+		this.completedActions.clear();
+	}
+
+	/** Highest priority gets executed first */
+	private getActionPriority(battler: Battler, action: Battle.Action): number {
+		if (action.type === 'move') {
+			if (battler) {
+				const speedIndex = this.getAllActiveInSpeedOrder().indexOf(battler);
+				return action.move.priority - (speedIndex / 100);
+			}
+		}
+
+		return 0;
 	}
 }
 
 namespace Battle {
 	export type ID = `Battle-${number}` & { _brand: 'Battle.ID' };
+
+	export type Action = {
+		type: 'move';
+		move: Move;
+		target?: Parameters<Battler["useMove"]>[1];
+	}
 }
 
 export default Battle;

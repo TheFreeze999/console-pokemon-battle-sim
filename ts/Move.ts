@@ -14,8 +14,11 @@ class Move implements Effect, Move.Data {
 	type = Types.Type["???"];
 	contact = false;
 	bypassTypeImmunity = false;
+	protectLike = false;
 	ohko = false;
+	bounceable = false;
 	PP = 10;
+	priority = 0;
 	id: Effect.ID;
 
 	handlers: Evt.Handler[] = [];
@@ -66,7 +69,7 @@ namespace Move {
 		STATUS = 'STATUS',
 	}
 
-	export type Data = Pick<Move, "ohko" | "category" | "targeting" | "basePower" | "type" | "contact" | "PP" | "handlers" | "bypassTypeImmunity">
+	export type Data = Pick<Move, "bounceable" | "priority" | "protectLike" | "ohko" | "category" | "targeting" | "basePower" | "type" | "contact" | "PP" | "handlers" | "bypassTypeImmunity">
 }
 
 

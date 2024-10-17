@@ -14,6 +14,10 @@ var Util;
             return array[int(0, array.length - 1)];
         }
         Random.arrayEl = arrayEl;
+        function arrayReorder(array) {
+            return [...array].sort((a, b) => arrayEl([-1, 1]));
+        }
+        Random.arrayReorder = arrayReorder;
     })(Random = Util.Random || (Util.Random = {}));
     function stringify(obj) {
         const keys = Object.keys(obj);
@@ -52,5 +56,9 @@ var Util;
             yield i++;
     }
     Util.createIDGen = createIDGen;
+    function getRandomFromDex(dex) {
+        return Random.arrayEl(Object.entries(dex).map(([id, effect]) => effect));
+    }
+    Util.getRandomFromDex = getRandomFromDex;
 })(Util || (Util = {}));
 export default Util;

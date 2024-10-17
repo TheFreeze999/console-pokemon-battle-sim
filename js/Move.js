@@ -9,8 +9,11 @@ class Move {
     type = Types.Type["???"];
     contact = false;
     bypassTypeImmunity = false;
+    protectLike = false;
     ohko = false;
+    bounceable = false;
     PP = 10;
+    priority = 0;
     id;
     handlers = [];
     constructor(id, displayName, data = {}) {

@@ -20,17 +20,27 @@ for (const effect of ([DexAbilities, DexItems, DexConditions, DexMoves].flatMap(
 }
 const PRE_EXECUTION = {
     onAnyMovePriority: 110,
-    async onAnyMove({ target, data, source }) {
-        if (!source)
+    async onAnyMove(evt) {
+        const { target, data, source } = evt;
+        if (!source || source.fainted)
             return;
-        const canUseMove = (await this.runEvt('CheckCanUseMove', { canUseMove: true }, source))?.canUseMove ?? true;
-        if (!canUseMove)
-            return null;
+        if (!data.causedByBounce) {
+            const canUseMove = (await this.runEvt('CheckCanUseMove', { canUseMove: true }, source))?.canUseMove ?? true;
+            if (!canUseMove)
+                return null;
+        }
         if (!data.move.verifyCorrectTargetSelection(source, target))
             return null;
+        ////////////////
+        if (data.move.protectLike) {
+            if (!await this.chance([1, 3 ** source.consecutiveProtectLikeUsages], evt))
+                data.moveFailed = true;
+        }
     },
     onAnyApplyConditionPriority: 110,
     async onAnyApplyCondition({ target, data, source, cause }) {
+        if (target.fainted)
+            return null;
         if (data.condition.isStatus && target.hasStatusCondition() && cause !== DexMoves.rest)
             return null;
         const immunityEvtResult = await this.runEvt('CheckConditionImmunity', { condition: data.condition, isImmune: false }, target, source, cause);
@@ -39,9 +49,27 @@ const PRE_EXECUTION = {
     },
     onAnyRemoveConditionPriority: 110,
     async onAnyRemoveCondition({ target, data }) {
+        if (target.fainted)
+            return null;
         if (!target.conditions.has(data.condition))
             return null;
     },
+    onAnyDamagePriority: 110,
+    async onAnyDamage({ target, data }) {
+        if (target.fainted)
+            return null;
+        if (data.amount <= 0)
+            return null;
+    },
+    onAnyHealPriority: 110,
+    async onAnyHeal({ target, data }) {
+        if (target.fainted)
+            return null;
+        if (target.currentHP >= target.stats.hp)
+            return null;
+        if (data.amount <= 0)
+            return null;
+    }
 };
 const EXECUTION = {
     onAnySwitchInPriority: 100,
@@ -73,8 +101,6 @@ const EXECUTION = {
     onAnyHealPriority: 100,
     async onAnyHeal({ target, data }) {
         data.amount = target.heal(data.amount);
-        if (data.amount <= 0)
-            return null;
         await this.showText(`${target.name} was healed by ${data.amount} HP.`);
         await this.showText(`${target.name} now has ${target.currentHP} HP!`);
     },
@@ -84,17 +110,29 @@ const EXECUTION = {
         const move = data.move;
         if (!source)
             return;
-        await this.showText(`: ${source.name} used ${move.displayName}!`);
+        await this.showText(`> ${source.name} used ${move.displayName}!`);
+        if (data.moveFailed)
+            return;
         data.ignoreAbility ??= false;
         const ignoreAbilityBlacklist = {
             key: 'ability ignore',
             checker: (listener) => {
-                return typeof listener.origin === "object" && 'wieldedEffect' in listener.origin && listener.origin.wieldedEffect instanceof Ability && listener.origin.wieldedEffect.ignorable;
+                return typeof listener.origin === "object" && 'wieldedEffect' in listener.origin && listener.origin.wieldedEffect instanceof Ability && listener.origin.wieldedEffect.ignorable && listener.priority > 100;
             },
         };
         for (const targetBattler of target) {
             if (targetBattler === source) {
-                await this.runEvt('ApplyMoveSecondary', { moveEvt: evt }, targetBattler, source, move);
+                continue;
+            }
+            if (data.bounced) {
+                let targ = undefined;
+                if (move.targeting === Move.Targeting.ONE_OTHER)
+                    targ = [source];
+                await targetBattler.useMove(move, targ, { causedByBounce: true });
+                continue;
+            }
+            if (targetBattler.conditions.has(DexConditions.protected)) {
+                await this.showText(`${targetBattler.name} was protected.`);
                 continue;
             }
             const getImmunityEvt = new Evt('GetImmunity', { isImmune: false }, targetBattler, source, move);
@@ -119,8 +157,8 @@ const EXECUTION = {
                     hitEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
                 await this.runEvt(hitEvt);
             }
-            await this.runEvt('ApplyMoveSecondary', { moveEvt: evt }, targetBattler, source, move);
         }
+        await this.runEvt('ApplyMoveSecondary', { moveEvt: evt }, target, source, move);
     },
     onAnyApplyMoveDamagePriority: 100,
     async onAnyApplyMoveDamage({ target, data, source }) {
@@ -141,13 +179,13 @@ const EXECUTION = {
     async onAnyHit({ data }) {
         data.fail ??= false;
         if (data.fail)
-            await this.showText(`But it failed...`);
+            data.moveEvt.data.moveFailed = true;
     },
     onAnyApplyMoveSecondaryPriority: 100,
     async onAnyApplyMoveSecondary({ data }) {
         data.fail ??= false;
         if (data.fail)
-            await this.showText(`But it failed...`);
+            data.moveEvt.data.moveFailed = true;
     },
     onAnyApplyConditionPriority: 100,
     async onAnyApplyCondition({ target, data }) {
@@ -181,6 +219,18 @@ const POST_EXECUTION = {
     async onAnyDamage({ target, source, cause }) {
         if (target.fainted)
             await this.runEvt('Faint', {}, target, source, cause);
+    },
+    onAnyMovePriority: 90,
+    async onAnyMove({ data, source }) {
+        if (!source)
+            return;
+        if (data.moveFailed)
+            await this.showText('But it failed...');
+        // Implementing fail chance for consecutive use of protect-like moves
+        if (data.move.protectLike && !data.moveFailed)
+            source.consecutiveProtectLikeUsages++;
+        else
+            source.consecutiveProtectLikeUsages = 0;
     }
 };
 const MISC = [{
