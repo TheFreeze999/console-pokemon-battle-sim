@@ -8,6 +8,7 @@ import Stats from "./Stats.js";
 
 class Evt<N extends Evt.Name = Evt.Name> {
 	listenerBlacklists = new Set<Evt.Listener.Blacklist<N>>();
+	additionalListenerCallbacks = new Set<{ callback: Evt.Callback<N>, priority: number }>();
 	handledCallbacks = new Set<Evt.Callback<N>>();
 
 	constructor(public name: N, public data: Evt.DataType<N>, public target: Evt.TargetType<N>, public source: Battler | null = null, public cause: Effect | null = null) {
@@ -24,7 +25,7 @@ namespace Evt {
 		Update: {};
 		SwitchIn: { autostart?: boolean };
 		Start: {};
-		Chance: { odds: [numerator: number, denominator: number], result?: boolean, forEvt: Evt<Name> };
+		Chance: { odds: [numerator: number, denominator: number], result?: boolean, forEvt: Evt<Name>, isSecondary?: boolean };
 		Damage: { amount: number, isDirect?: boolean };
 		Faint: {};
 		Heal: { amount: number };
@@ -45,6 +46,8 @@ namespace Evt {
 		GetMoveDamageMultiplier: { multiplier: number };
 		RemoveItem: { method: 'consume' | 'take', itemRemoved?: Item }
 		ModifyStat: { stat: keyof Stats.Boostable, modifier: number };
+		CheckMoveMiss: { accuracy: number, miss: boolean };
+		CheckMoveCrit: { critRatio: number, crit: boolean };
 	}
 	export type Name = keyof DataTypes;
 
@@ -71,6 +74,8 @@ namespace Evt {
 		GetMoveDamageMultiplier: Battler;
 		RemoveItem: Battler;
 		ModifyStat: Battler;
+		CheckMoveMiss: Battler;
+		CheckMoveCrit: Battler;
 	};
 	type DefaultTargetType = Battler[] | Battler | Battle;
 	export type TargetType<N extends Name = Name> = N extends keyof TargetTypes ? TargetTypes[N] : DefaultTargetType;

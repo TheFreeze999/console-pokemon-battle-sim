@@ -48,6 +48,8 @@ const PRE_EXECUTION: Evt.Handler = {
 		if (data.condition.isStatus && target.hasStatusCondition() && cause !== DexMoves.rest) return null;
 		const immunityEvtResult = await this.runEvt('CheckConditionImmunity', { condition: data.condition, isImmune: false }, target, source, cause);
 		if (immunityEvtResult?.isImmune === true) return null;
+
+		if (target.conditions.has(data.condition)) return null;
 	},
 
 	onAnyRemoveConditionPriority: 110,
@@ -131,6 +133,11 @@ const EXECUTION: Evt.Handler = {
 				continue;
 			}
 
+			if ((await this.runEvt('CheckMoveMiss', { accuracy: move.accuracy, miss: false }, targetBattler, source, move))?.miss === true) {
+				await this.showText(`${targetBattler.name} avoided the attack.`)
+				continue;
+			}
+
 			if (data.bounced) {
 				let targ: Battler[] | undefined = undefined;
 				if (move.targeting === Move.Targeting.ONE_OTHER) targ = [source];
@@ -153,15 +160,20 @@ const EXECUTION: Evt.Handler = {
 				if (showImmunityText)
 					await this.showText(`It doesn't affect ${targetBattler.name}...`)
 			} else {
-				if (move.isStandardDamagingAttack()) {
-					const applyMoveDamageEvt = new Evt('ApplyMoveDamage', { moveEvt: evt }, targetBattler, source, move);
-					if (data.ignoreAbility) applyMoveDamageEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
-					await this.runEvt(applyMoveDamageEvt);
-				}
+				const hitCount = Util.Random.arrayEl(move.hits);
+				for (let i = 0; i < hitCount; i++) {
+					if (hitCount > 1) await Util.delay(500);
+					if (move.isStandardDamagingAttack()) {
+						const applyMoveDamageEvt = new Evt('ApplyMoveDamage', { moveEvt: evt }, targetBattler, source, move);
+						if (data.ignoreAbility) applyMoveDamageEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
+						await this.runEvt(applyMoveDamageEvt);
+					}
 
-				const hitEvt = new Evt('Hit', { moveEvt: evt }, targetBattler, source, move);
-				if (data.ignoreAbility) hitEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
-				await this.runEvt(hitEvt);
+					const hitEvt = new Evt('Hit', { moveEvt: evt }, targetBattler, source, move);
+					if (data.ignoreAbility) hitEvt.listenerBlacklists.add(ignoreAbilityBlacklist);
+					await this.runEvt(hitEvt);
+				}
+				if (hitCount > 1) await this.showText(`Hit ${hitCount} time(s).`);
 			}
 		}
 		await this.runEvt('ApplyMoveSecondary', { moveEvt: evt }, target, source, move);
@@ -180,8 +192,17 @@ const EXECUTION: Evt.Handler = {
 			await this.showText(Types.getEffectivenessText(typeEffectiveness, target.name));
 		}
 
-		const damage = move.calcDamage(source, target, typeEffectiveness * damageMultiplier);
+		const isCrit =
+			(await this.runEvt('CheckMoveCrit', { critRatio: move.critRatio, crit: false }, target, source, move))
+				?.crit ?? false;
+
+
+		const damage = move.calcDamage(source, target, {
+			additionalModifiers: typeEffectiveness * damageMultiplier,
+			isCrit
+		});
 		if (!damage) return;
+		if (isCrit) await this.showText('A critical hit!');
 		await this.runEvt('Damage', { amount: damage, isDirect: true }, target, source, move)
 	},
 
@@ -225,6 +246,23 @@ const EXECUTION: Evt.Handler = {
 	async onAnyRemoveItem({ target, data }) {
 		data.itemRemoved ??= target.itemSlot.item ?? undefined;
 		target.itemSlot.item = null;
+	},
+
+	onAnyCheckMoveMissPriority: 100,
+	async onAnyCheckMoveMiss(evt) {
+		const multiplier = (evt.source?.getEffectiveStats().acc ?? 1) / (evt.target?.getEffectiveStats().eva ?? 1);
+		evt.data.miss = !await this.chance([evt.data.accuracy * multiplier, 100], evt);
+	},
+
+	onAnyCheckMoveCritPriority: 100,
+	async onAnyCheckMoveCrit(evt) {
+		let chance: [number, number] = [1, 24];
+
+		if (evt.data.critRatio >= 1) chance = [1, 8];
+		if (evt.data.critRatio >= 2) chance = [1, 2];
+		if (evt.data.critRatio >= 3) chance = [1, 1];
+
+		evt.data.crit = await this.chance(chance, evt);
 	}
 }
 

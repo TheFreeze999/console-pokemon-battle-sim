@@ -5,6 +5,7 @@ class Evt {
     source;
     cause;
     listenerBlacklists = new Set();
+    additionalListenerCallbacks = new Set();
     handledCallbacks = new Set();
     constructor(name, data, target, source = null, cause = null) {
         this.name = name;

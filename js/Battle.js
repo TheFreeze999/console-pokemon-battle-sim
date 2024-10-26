@@ -71,9 +71,9 @@ class Battle {
     }
     async showText(...texts) {
         for (const text of texts) {
-            // await Util.delay(500);
+            // await Util.delay(100);
             console.log(String(text));
-            // await Util.delay(500);
+            // await Util.delay(100);
         }
     }
     debug(...texts) {
@@ -197,6 +197,15 @@ class Battle {
                 listeners.push(listener);
             }
         }
+        for (const { callback, priority } of evt.additionalListenerCallbacks) {
+            const listener = {
+                evt,
+                priority,
+                callback,
+                origin: 'global'
+            };
+            listeners.push(listener);
+        }
         listeners.sort((a, b) => b.priority - a.priority);
         return listeners.filter(listener => !evt.handledCallbacks.has(listener.callback)).filter(listener => lastPriority === null || listener.priority <= lastPriority);
     }
@@ -248,6 +257,9 @@ class Battle {
     }
     async chance(odds, forEvt) {
         return !!(await this.runEvt('Chance', { odds, forEvt }, forEvt.target, forEvt.source, forEvt.cause))?.result;
+    }
+    async moveSecondaryChance(odds, forEvt) {
+        return !!(await this.runEvt('Chance', { odds, forEvt, isSecondary: true }, forEvt.target, forEvt.source, forEvt.cause))?.result;
     }
     getEventAncestors(evt) {
         return this.evtAncestry.slice(this.evtAncestry.indexOf(evt) + 1);

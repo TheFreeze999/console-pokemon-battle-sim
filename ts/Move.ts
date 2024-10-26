@@ -7,6 +7,7 @@ import Types from "./Types.js";
 import Util from "./util.js";
 
 class Move implements Effect, Move.Data {
+	id: Effect.ID;
 
 	targeting = Move.Targeting.ONE_OTHER;
 	category = Move.Category.PHYSICAL;
@@ -17,9 +18,12 @@ class Move implements Effect, Move.Data {
 	protectLike = false;
 	ohko = false;
 	bounceable = false;
+	sound = false;
 	PP = 10;
 	priority = 0;
-	id: Effect.ID;
+	accuracy = 100;
+	hits = [1];
+	critRatio = 0;
 
 	handlers: Evt.Handler[] = [];
 
@@ -38,7 +42,13 @@ class Move implements Effect, Move.Data {
 		return false;
 	}
 
-	calcDamage(attacker: Battler, defender: Battler, additionalModifiers = 1): number | null {
+	calcDamage(attacker: Battler, defender: Battler, options: {
+		additionalModifiers?: number;
+		isCrit?: boolean;
+	} = {}): number | null {
+		const additionalModifiers = options.additionalModifiers ?? 1;
+		const isCrit = options.isCrit ?? false;
+
 		if (!this.isStandardDamagingAttack()) return null;
 		const attackingStat = (this.category === Move.Category.PHYSICAL ? "atk" : "spA");
 		const defendingStat = (this.category === Move.Category.PHYSICAL ? "def" : "spD");
@@ -47,9 +57,15 @@ class Move implements Effect, Move.Data {
 		if (typeEffectiveness === 0) return 0;
 
 		const STABModifier = attacker.types.includes(this.type) ? 1.5 : 1;
-		const modifiers = additionalModifiers * STABModifier;
+		const critModifier = isCrit ? 1.5 : 1;
+		const modifiers = additionalModifiers * STABModifier * critModifier;
 
-		return Util.clamper(1)(Math.floor((this.basePower * attacker.getEffectiveStats()[attackingStat] / defender.getEffectiveStats()[defendingStat]) * Util.Random.int(100, 100) / 100 * modifiers));
+
+		return Util.clamper(1)(Math.floor((this.basePower * attacker.getEffectiveStats({
+			ignoreNegativeStatBoosts: isCrit
+		})[attackingStat] / defender.getEffectiveStats({
+			ignorePositiveStatBoosts: isCrit
+		})[defendingStat]) * Util.Random.int(100, 100) / 100 * modifiers));
 	}
 
 	isStandardDamagingAttack() {
@@ -69,7 +85,7 @@ namespace Move {
 		STATUS = 'STATUS',
 	}
 
-	export type Data = Pick<Move, "bounceable" | "priority" | "protectLike" | "ohko" | "category" | "targeting" | "basePower" | "type" | "contact" | "PP" | "handlers" | "bypassTypeImmunity">
+	export type Data = Pick<Move, "sound" | "critRatio" | "hits" | "accuracy" | "bounceable" | "priority" | "protectLike" | "ohko" | "category" | "targeting" | "basePower" | "type" | "contact" | "PP" | "handlers" | "bypassTypeImmunity">
 }
 
 

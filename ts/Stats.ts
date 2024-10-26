@@ -17,6 +17,7 @@ namespace Stats {
 	}
 
 	export type Any = Stats.Base | Stats.Boostable | Stats.WithoutHP;
+	export type Full = Stats.Base & Stats.Boostable;
 
 	export namespace Create {
 		export function withoutHP(): Stats.WithoutHP {
@@ -42,6 +43,19 @@ namespace Stats {
 
 		export function boostable(): Stats.Boostable {
 			return {
+				atk: 0,
+				def: 0,
+				spA: 0,
+				spD: 0,
+				spe: 0,
+				acc: 0,
+				eva: 0
+			}
+		}
+
+		export function full(): Stats.Full {
+			return {
+				hp: 0,
 				atk: 0,
 				def: 0,
 				spA: 0,

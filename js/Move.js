@@ -3,6 +3,7 @@ import Types from "./Types.js";
 import Util from "./util.js";
 class Move {
     displayName;
+    id;
     targeting = Move.Targeting.ONE_OTHER;
     category = Move.Category.PHYSICAL;
     basePower = 0;
@@ -12,9 +13,12 @@ class Move {
     protectLike = false;
     ohko = false;
     bounceable = false;
+    sound = false;
     PP = 10;
     priority = 0;
-    id;
+    accuracy = 100;
+    hits = [1];
+    critRatio = 0;
     handlers = [];
     constructor(id, displayName, data = {}) {
         this.displayName = displayName;
@@ -30,7 +34,9 @@ class Move {
             return true;
         return false;
     }
-    calcDamage(attacker, defender, additionalModifiers = 1) {
+    calcDamage(attacker, defender, options = {}) {
+        const additionalModifiers = options.additionalModifiers ?? 1;
+        const isCrit = options.isCrit ?? false;
         if (!this.isStandardDamagingAttack())
             return null;
         const attackingStat = (this.category === Move.Category.PHYSICAL ? "atk" : "spA");
@@ -39,8 +45,13 @@ class Move {
         if (typeEffectiveness === 0)
             return 0;
         const STABModifier = attacker.types.includes(this.type) ? 1.5 : 1;
-        const modifiers = additionalModifiers * STABModifier;
-        return Util.clamper(1)(Math.floor((this.basePower * attacker.getEffectiveStats()[attackingStat] / defender.getEffectiveStats()[defendingStat]) * Util.Random.int(100, 100) / 100 * modifiers));
+        const critModifier = isCrit ? 1.5 : 1;
+        const modifiers = additionalModifiers * STABModifier * critModifier;
+        return Util.clamper(1)(Math.floor((this.basePower * attacker.getEffectiveStats({
+            ignoreNegativeStatBoosts: isCrit
+        })[attackingStat] / defender.getEffectiveStats({
+            ignorePositiveStatBoosts: isCrit
+        })[defendingStat]) * Util.Random.int(100, 100) / 100 * modifiers));
     }
     isStandardDamagingAttack() {
         return this.category !== Move.Category.STATUS && !!this.basePower;

@@ -17,7 +17,7 @@ const DexMoves = {
 		basePower: 40,
 		handlers: [{
 			async onCauseHit(evt) {
-				if (await this.chance([10, 100], evt))
+				if (await this.moveSecondaryChance([10, 100], evt))
 					await this.runEvt('ApplyCondition', { condition: DexConditions.brn }, evt.target, evt.source, DexMoves.ember);
 			}
 		}]
@@ -37,11 +37,16 @@ const DexMoves = {
 			}
 		}]
 	}),
-	/* sheer_cold: new Move('sheer_cold', 'Sheer Cold', {
+	sheer_cold: new Move('sheer_cold', 'Sheer Cold', {
 		type: Types.Type.ICE,
 		category: Move.Category.SPECIAL,
 		ohko: true,
+		accuracy: 30,
 		handlers: [{
+			onCauseCheckMoveMissPriority: 101,
+			async onCauseCheckMoveMiss({ data }) {
+				data.accuracy = 30;
+			},
 			onCauseHitPriority: 101,
 			async onCauseHit({ data, target, source, cause }) {
 				await this.runEvt('Damage', { amount: target.currentHP, isDirect: true }, target, source, cause);
@@ -52,7 +57,7 @@ const DexMoves = {
 				if (target.hasType(Types.Type.ICE)) data.isImmune = true;
 			}
 		}]
-	}), */
+	}),
 	glare: new Move('glare', 'Glare', {
 		category: Move.Category.STATUS,
 		type: Types.Type.NORMAL,
@@ -89,6 +94,10 @@ const DexMoves = {
 		type: Types.Type.POISON,
 		bounceable: true,
 		handlers: [{
+			onCauseCheckMoveMissPriority: 80,
+			async onCauseCheckMoveMiss({ data, source }) {
+				if (source?.hasType(Types.Type.POISON)) data.miss = false;
+			},
 			onCauseGetImmunityPriority: 99,
 			async onCauseGetImmunity({ target, data, source }) {
 				data.isImmune = (await this.runEvt('CheckConditionImmunity', { condition: DexConditions.tox, isImmune: false }, target, source, DexMoves.toxic))?.isImmune ?? false;
@@ -183,7 +192,7 @@ const DexMoves = {
 		handlers: [{
 			onCauseApplyMoveDamagePriority: 80,
 			async onCauseApplyMoveDamage(evt) {
-				if (await this.chance([100, 100], evt))
+				if (await this.moveSecondaryChance([30, 100], evt))
 					await this.runEvt('ApplyCondition', { condition: DexConditions.psn }, evt.target, evt.source, DexMoves.sludge_bomb);
 			}
 		}]
@@ -195,11 +204,32 @@ const DexMoves = {
 		handlers: [{
 			onCauseApplyMoveDamagePriority: 80,
 			async onCauseApplyMoveDamage(evt) {
-				if (await this.chance([100, 100], evt))
+				if (await this.moveSecondaryChance([10, 100], evt))
 					await this.runEvt('ApplyCondition', { condition: DexConditions.prz }, evt.target, evt.source, DexMoves.thunderbolt);
 			}
 		}]
-	})
+	}),
+	leech_seed: new Move('leech_seed', 'Leech Seed', {
+		type: Types.Type.GRASS,
+		category: Move.Category.STATUS,
+		bounceable: true,
+		handlers: [{
+			onCauseGetImmunityPriority: 99,
+			async onCauseGetImmunity({ target, data, source }) {
+				data.isImmune = (await this.runEvt('CheckConditionImmunity', { condition: DexConditions.leech_seeded, isImmune: false }, target, source, DexMoves.leech_seed))?.isImmune ?? false;
+			},
+			onCauseHitPriority: 110,
+			async onCauseHit({ data, source, target }) {
+				data.fail = !await this.runEvt('ApplyCondition', { condition: DexConditions.leech_seeded }, target, source, DexMoves.leech_seed);
+			}
+		}]
+	}),
+	boomburst: new Move('boomburst', 'Boomburst', {
+		type: Types.Type.NORMAL,
+		category: Move.Category.SPECIAL,
+		basePower: 140,
+		sound: true
+	}),
 } as const;
 
 export default DexMoves;

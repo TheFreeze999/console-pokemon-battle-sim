@@ -31,12 +31,13 @@ gibble.setStats({
 	spe: 90
 });
 
-gibble.types = [Types.Type.DRAGON, Types.Type.STEEL/* , Types.Type.ELECTRIC */];
-abra.types = [Types.Type.PSYCHIC];
+gibble.types = [Types.Type.STEEL, Types.Type.GRASS];
+abra.types = [Types.Type.GHOST];
 
 // gibble.abilitySlot.baseAbility = Util.getRandomFromDex(DexAbilities);
 // abra.abilitySlot.baseAbility = Util.getRandomFromDex(DexAbilities);
-gibble.abilitySlot.baseAbility = DexAbilities.magic_bounce;
+gibble.abilitySlot.baseAbility = DexAbilities.soundproof;
+abra.abilitySlot.baseAbility = DexAbilities.mold_breaker;
 
 // gibble.itemSlot.item = Util.getRandomFromDex(DexItems);
 // abra.itemSlot.item = Util.getRandomFromDex(DexItems);
@@ -54,8 +55,8 @@ await battle.start();
 
 await battle.startTurn();
 
-battle.submitAction(abra, { type: 'move', move: DexMoves.glare });
-battle.submitAction(gibble, { type: 'move', move: DexMoves.ember });
+battle.submitAction(abra, { type: 'move', move: DexMoves.leech_seed });
+battle.submitAction(gibble, { type: 'move', move: DexMoves.boomburst });
 
 await battle.executeAllActions();
 
@@ -64,8 +65,8 @@ await battle.endTurn();
 
 await battle.startTurn();
 
-battle.submitAction(abra, { type: 'move', move: DexMoves.glare });
-battle.submitAction(gibble, { type: 'move', move: DexMoves.ember });
+battle.submitAction(abra, { type: 'move', move: DexMoves.boomburst });
+battle.submitAction(gibble, { type: 'move', move: DexMoves.sludge_bomb });
 
 await battle.executeAllActions();
 

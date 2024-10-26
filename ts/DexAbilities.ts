@@ -63,7 +63,8 @@ const DexAbilities = {
 		handlers: [{
 			onSourceChancePriority: 200,
 			async onSourceChance({ data, cause }) {
-				if (cause instanceof Move) data.odds[0] *= 2;
+				data.isSecondary ??= false;
+				if (cause instanceof Move && data.isSecondary) data.odds[0] *= 2;
 			}
 		}]
 	}),
@@ -197,7 +198,9 @@ const DexAbilities = {
 			onTargetGetImmunityPriority: 150,
 			async onTargetGetImmunity({ data, target, cause: move }) {
 				if (!(move instanceof Move)) return;
-				if (move.ohko) data.isImmune = true;
+				if (!move.ohko) return;
+				data.isImmune = true;
+				await this.showText(`[${target.name}'s Sturdy]`);
 			},
 
 			onTargetDamagePriority: 101,
@@ -242,6 +245,26 @@ const DexAbilities = {
 				if (!data.causedByBounce) return;
 				if (source?.conditions.has(DexConditions.magic_coated)) return;
 				await this.showText(`[${source?.name}'s Magic Bounce]`)
+			}
+		}]
+	}),
+	no_guard: new Ability('no_guard', 'No Guard', {
+		handlers: [{
+			onAnyCheckMoveMissPriority: 80,
+			async onAnyCheckMoveMiss({ source, target, data }) {
+				if (source?.getAbility() === DexAbilities.no_guard || target?.getAbility() === DexAbilities.no_guard)
+					data.miss = false;
+			}
+		}]
+	}),
+	soundproof: new Ability('soundproof', 'Soundproof', {
+		handlers: [{
+			onTargetGetImmunityPriority: 200,
+			async onTargetGetImmunity({ data, cause: move, target }) {
+				if (!(move instanceof Move)) return;
+				if (!move.sound) return;
+				data.isImmune = true;
+				await this.showText(`[${target.name}'s Soundproof]`)
 			}
 		}]
 	})

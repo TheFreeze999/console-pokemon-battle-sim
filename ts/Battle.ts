@@ -97,9 +97,9 @@ class Battle {
 
 	async showText(...texts: any[]) {
 		for (const text of texts) {
-			// await Util.delay(500);
+			// await Util.delay(100);
 			console.log(String(text))
-			// await Util.delay(500);
+			// await Util.delay(100);
 		}
 	}
 
@@ -244,6 +244,16 @@ class Battle {
 			}
 		}
 
+		for (const { callback, priority } of evt.additionalListenerCallbacks) {
+			const listener: Evt.Listener<N> = {
+				evt,
+				priority,
+				callback,
+				origin: 'global'
+			}
+			listeners.push(listener)
+		}
+
 		listeners.sort((a, b) => b.priority - a.priority);
 		return listeners.filter(listener => !evt.handledCallbacks.has(listener.callback)).filter(listener => lastPriority === null || listener.priority <= lastPriority);
 	}
@@ -303,6 +313,9 @@ class Battle {
 
 	async chance(odds: [numerator: number, denominator: number], forEvt: Evt<any>) {
 		return !!(await this.runEvt('Chance', { odds, forEvt }, forEvt.target, forEvt.source, forEvt.cause))?.result
+	}
+	async moveSecondaryChance(odds: [numerator: number, denominator: number], forEvt: Evt<any>) {
+		return !!(await this.runEvt('Chance', { odds, forEvt, isSecondary: true }, forEvt.target, forEvt.source, forEvt.cause))?.result
 	}
 
 	getEventAncestors(evt: Evt) {

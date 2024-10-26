@@ -8,7 +8,7 @@ class Battler {
     name;
     id;
     team;
-    stats = Stats.Create.base();
+    stats = Stats.Create.full();
     statBoosts = Stats.Create.boostable();
     hiddenStatMultipliers = {
         atk: 1,
@@ -80,7 +80,10 @@ class Battler {
         return this.team.getOpposingTeam().getAllActive();
     }
     dealDamage(amount) {
+        const oldAmount = amount;
         amount = Math.abs(Math.floor(amount));
+        if (oldAmount > 0)
+            amount = Math.max(amount, 1);
         this.currentHP -= amount;
         if (this.currentHP <= 0) {
             amount += this.currentHP;
@@ -123,18 +126,32 @@ class Battler {
         }
         return changes;
     }
-    getEffectiveStats() {
-        const result = Stats.Create.withoutHP();
+    getEffectiveStats(options = {}) {
+        const ignorePositiveStatBoosts = options.ignorePositiveStatBoosts ?? false;
+        const ignoreNegativeStatBoosts = options.ignoreNegativeStatBoosts ?? false;
+        const result = Stats.Create.full();
+        result.hp = this.stats.hp;
         for (const [stat] of Util.objectEntries(this.stats)) {
             if (stat === 'hp')
                 continue;
             let numerator = 2;
             let denominator = 2;
+            let base = this.stats[stat];
+            if (stat === 'acc' || stat === 'eva') {
+                numerator = 3;
+                denominator = 3;
+                base = 1;
+            }
             if (this.statBoosts[stat] > 0)
                 numerator += this.statBoosts[stat];
             else if (this.statBoosts[stat] < 0)
                 denominator += this.statBoosts[stat];
-            result[stat] = this.stats[stat] * (numerator / denominator) * this.hiddenStatMultipliers[stat];
+            let statBoostsMultiplier = (numerator / denominator);
+            if (ignorePositiveStatBoosts && statBoostsMultiplier > 1)
+                statBoostsMultiplier = 1;
+            if (ignoreNegativeStatBoosts && statBoostsMultiplier < 1)
+                statBoostsMultiplier = 1;
+            result[stat] = base * statBoostsMultiplier * this.hiddenStatMultipliers[stat];
         }
         return result;
     }

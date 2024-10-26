@@ -1,3 +1,4 @@
+import Battler from "./Battler.js";
 import Condition from "./Condition.js";
 import DexAbilities from "./DexAbilities.js";
 import Evt from "./Evt.js";
@@ -212,6 +213,33 @@ const DexConditions = {
 				if (!data.causedByBounce) return;
 				await this.showText(`${source?.name} bounced the move back!`)
 			},
+		}]
+	}),
+	leech_seeded: new Condition('leech_seeded', 'Leech Seeded', {
+		handlers: [{
+			onAnyCheckConditionImmunityPriority: 210,
+			async onAnyCheckConditionImmunity({ data, target }) {
+				if (data.condition !== DexConditions.leech_seeded) return;
+				if (target.hasType(Types.Type.GRASS)) data.isImmune = true;
+			},
+			onAnyApplyConditionPriority: 90,
+			async onAnyApplyCondition({ data, source, target }) {
+				if (data.condition !== DexConditions.leech_seeded) return;
+				this.getEffectState(target, DexConditions.leech_seeded).drainer = source;
+				await this.showText(`${target.name} was seeded.`)
+			},
+			onTargetResidualPriority: 120,
+			async onTargetResidual({ target }) {
+				const drainer = this.getEffectState(target, DexConditions.leech_seeded).drainer;
+				Battler.assertIsBattler(drainer);
+				const dmgEvt = await this.runEvt('Damage', { amount: target.stats.hp / 8 }, target, drainer, DexConditions.leech_seeded);
+				if (!dmgEvt) return;
+				await this.runEvt('Heal', { amount: dmgEvt.amount }, drainer, drainer, DexConditions.leech_seeded);
+			},
+			onCauseDamagePriority: 101,
+			async onCauseDamage({ target }) {
+				await this.showText(`${target.name}'s HP was sapped by Leech Seed!`);
+			}
 		}]
 	})
 } as const;
